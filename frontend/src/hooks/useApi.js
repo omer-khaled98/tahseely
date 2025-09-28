@@ -8,7 +8,7 @@ export function useApi() {
   // نِنشئ axios instance مرة واحدة حسب الـ token
   const api = useMemo(() => {
     return axios.create({
-      baseURL: import.meta.env?.VITE_API_URL || "http://localhost:5000",
+      baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000",
       headers: { Authorization: `Bearer ${token}` },
     });
   }, [token]);

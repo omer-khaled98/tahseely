@@ -67,7 +67,7 @@ export default function UserDashboard() {
   // ---------------- إعدادات API ----------------
   const token = localStorage.getItem("token");
   const api = axios.create({
-    baseURL: import.meta.env?.VITE_API_URL || "http://localhost:5000",
+    baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000",
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -604,7 +604,7 @@ export default function UserDashboard() {
                       <span>{att.fileUrl.split("/").pop()}</span>
                       <a
                         href={
-                          import.meta.env?.VITE_API_URL +
+                          process.env.REACT_APP_API_URL +
                           `${att.fileUrl.replace(/\\\\/g, "/")}`
                         }
                         target="_blank"

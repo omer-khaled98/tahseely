@@ -398,7 +398,7 @@ function ReceiptsView({ api }) {
                   {attachments.map((att) => (
                     <li key={att._id}>
                       <a
-                        href={`${import.meta.env?.VITE_API_URL}${att.fileUrl}`}
+                        href={`${process.env.REACT_APP_API_URL}${att.fileUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 underline"

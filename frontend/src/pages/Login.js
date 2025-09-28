@@ -19,7 +19,7 @@ export default function Login() {
     setError("");
     try {
       const res = await axios.post(
-        `${import.meta.env?.VITE_API_URL}/api/auth/login`,
+        `${process.env.REACT_APP_API_URL}/api/auth/login`,
         {
           email,
           password,
@@ -55,7 +55,9 @@ export default function Login() {
       setLoading(false);
     }
   };
-
+  // console.log("sss", process.env.REACT_APP_API_URL);
+  // console.log("import.meta.env =", import.meta.env);
+  console.log("VITE_API_URL =", process.env.REACT_APP_API_URL);
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50 flex items-center justify-center px-4">
       {/* Toast Notifications */}
