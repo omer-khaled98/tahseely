@@ -1,7 +1,14 @@
 // src/pages/UserDashboard.jsx
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { LogOut, FilePlus2, TrendingUp, Banknote, Wallet, Search } from "lucide-react";
+import {
+  LogOut,
+  FilePlus2,
+  TrendingUp,
+  Banknote,
+  Wallet,
+  Search,
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 // ===== Chart.js (stable) =====
@@ -18,7 +25,17 @@ import {
   Filler,
 } from "chart.js";
 import { Pie, Line } from "react-chartjs-2";
-Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, ChartTooltip, ChartLegend, LineElement, PointElement, Filler);
+Chart.register(
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ChartTooltip,
+  ChartLegend,
+  LineElement,
+  PointElement,
+  Filler
+);
 
 export default function UserDashboard() {
   // ---------------- الفروع والفورمز ----------------
@@ -50,7 +67,7 @@ export default function UserDashboard() {
   // ---------------- إعدادات API ----------------
   const token = localStorage.getItem("token");
   const api = axios.create({
-    baseURL: "http://localhost:5000",
+    baseURL: import.meta.env?.VITE_API_URL || "http://localhost:5000",
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -61,7 +78,7 @@ export default function UserDashboard() {
     window.location.href = "/login";
   };
 
-    // ---------------- جلب الفروع ----------------
+  // ---------------- جلب الفروع ----------------
   useEffect(() => {
     (async () => {
       try {
@@ -128,10 +145,7 @@ export default function UserDashboard() {
     [bankCollections]
   );
   const totalSalesLive = useMemo(
-    () =>
-      (Number(formData.cashCollection) || 0) +
-      appsTotal +
-      bankTotal,
+    () => (Number(formData.cashCollection) || 0) + appsTotal + bankTotal,
     [formData.cashCollection, appsTotal, bankTotal]
   );
 
@@ -141,11 +155,19 @@ export default function UserDashboard() {
     try {
       const appsPayload = applications
         .filter((x) => x.templateId && Number(x.amount) > 0)
-        .map((x) => ({ template: x.templateId, name: x.name, amount: Number(x.amount) }));
+        .map((x) => ({
+          template: x.templateId,
+          name: x.name,
+          amount: Number(x.amount),
+        }));
 
       const bankPayload = bankCollections
         .filter((x) => x.templateId && Number(x.amount) > 0)
-        .map((x) => ({ template: x.templateId, name: x.name, amount: Number(x.amount) }));
+        .map((x) => ({
+          template: x.templateId,
+          name: x.name,
+          amount: Number(x.amount),
+        }));
 
       const payload = {
         ...formData,
@@ -197,9 +219,7 @@ export default function UserDashboard() {
   const totalDailySales = forms.reduce(
     (sum, f) =>
       sum +
-      ((f.cashCollection || 0) +
-        (f.bankTotal || 0) +
-        (f.appsCollection || 0)),
+      ((f.cashCollection || 0) + (f.bankTotal || 0) + (f.appsCollection || 0)),
     0
   );
 
@@ -230,11 +250,7 @@ export default function UserDashboard() {
     const map = new Map();
     for (const f of forms) {
       const d = new Date(f.formDate);
-      const k = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate()
-      )
+      const k = new Date(d.getFullYear(), d.getMonth(), d.getDate())
         .toISOString()
         .slice(0, 10);
       map.set(k, (map.get(k) || 0) + 1);
@@ -343,7 +359,9 @@ export default function UserDashboard() {
             {/* التاريخ + الفرع */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">التاريخ</label>
+                <label className="block text-sm font-medium mb-1">
+                  التاريخ
+                </label>
                 <input
                   type="date"
                   value={formData.formDate}
@@ -426,18 +444,25 @@ export default function UserDashboard() {
             {/* المبيعات الفعلية + الملاحظات */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">المبيعات الفعلية</label>
+                <label className="block text-sm font-medium mb-1">
+                  المبيعات الفعلية
+                </label>
                 <input
                   type="number"
                   value={formData.actualSales}
                   onChange={(e) =>
-                    setFormData({ ...formData, actualSales: Number(e.target.value) })
+                    setFormData({
+                      ...formData,
+                      actualSales: Number(e.target.value),
+                    })
                   }
                   className="border p-2 rounded-xl w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">ملاحظات</label>
+                <label className="block text-sm font-medium mb-1">
+                  ملاحظات
+                </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) =>
@@ -477,7 +502,10 @@ export default function UserDashboard() {
             <div className="h-64">
               <Line
                 data={perDayLine}
-                options={{ ...commonOptions, elements: { line: { tension: 0.35 } } }}
+                options={{
+                  ...commonOptions,
+                  elements: { line: { tension: 0.35 } },
+                }}
               />
             </div>
           </div>
@@ -525,14 +553,18 @@ export default function UserDashboard() {
                     {filteredForms.map((f) => (
                       <tr key={f._id} className="text-center">
                         <td className="p-2 border">
-                          {f.formDate ? new Date(f.formDate).toLocaleDateString() : "-"}
+                          {f.formDate
+                            ? new Date(f.formDate).toLocaleDateString()
+                            : "-"}
                         </td>
                         <td className="p-2 border">{f.branch?.name || "-"}</td>
                         <td className="p-2 border">{f.user?.name || "-"}</td>
                         <td className="p-2 border">{f.pettyCash}</td>
                         <td className="p-2 border">{f.purchases}</td>
                         <td className="p-2 border">
-                          {(f.cashCollection || 0) + (f.bankTotal || 0) + (f.appsCollection || 0)}
+                          {(f.cashCollection || 0) +
+                            (f.bankTotal || 0) +
+                            (f.appsCollection || 0)}
                         </td>
                         <td className="p-2 border">{f.notes || "-"}</td>
                         <td className="p-2 border">
@@ -550,7 +582,8 @@ export default function UserDashboard() {
               </div>
 
               <div className="mt-4 p-4 bg-emerald-50 rounded-xl font-bold text-right">
-                ملخص التقارير (إجمالي المبيعات): {totalDailySales.toLocaleString()}
+                ملخص التقارير (إجمالي المبيعات):{" "}
+                {totalDailySales.toLocaleString()}
               </div>
             </>
           )}
@@ -570,7 +603,10 @@ export default function UserDashboard() {
                     >
                       <span>{att.fileUrl.split("/").pop()}</span>
                       <a
-                        href={`http://localhost:5000${att.fileUrl.replace(/\\\\/g, "/")}`}
+                        href={
+                          import.meta.env?.VITE_API_URL +
+                          `${att.fileUrl.replace(/\\\\/g, "/")}`
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 underline"
@@ -637,7 +673,14 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
   );
 }
 
-function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) {
+function DynamicRows({
+  title,
+  rows,
+  setRows,
+  templates,
+  addLabel,
+  totalLabel,
+}) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-2">{title}</label>
