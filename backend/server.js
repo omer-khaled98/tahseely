@@ -8,7 +8,23 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  "https://tahseely.al-hawas-eg.cloud",
+  process.env.FRONT_URL,
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 // 🟢 اجعل فولدر uploads متاح للفرونت
@@ -28,7 +44,9 @@ app.use("/api/review", require("./routes/reviewRoutes"));
 
 // ✅ Route للتأكيد
 app.get("/", (req, res) => {
-  res.send("🚀 Finance System is running successfully on tahseelaty.al-hawas-eg.cloud!");
+  res.send(
+    "🚀 Finance System is running successfully on tahseelaty.al-hawas-eg.cloud!"
+  );
 });
 
 // 🟡 Start Server
