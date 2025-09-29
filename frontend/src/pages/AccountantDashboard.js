@@ -1,5 +1,5 @@
 // src/pages/AccountantDashboard.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import { LogOut, Filter, Search, CheckCircle2, XCircle, Clock3, FileText } from "lucide-react";
 
@@ -21,6 +21,25 @@ Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, ChartTooltip,
 
 export default function AccountantDashboard() {
   // ================= 1) API =================
+  //const token = localStorage.getItem("token");
+
+  // ✅ Server-safe base URL (بدون إجبار localhost)
+//  const API_BASE = (
+//    import.meta?.env?.VITE_API_URL ||
+//    process?.env?.REACT_APP_API_URL ||
+//    window.location.origin
+//  ).replace(/\/+$/, "");
+//
+//  const api = useMemo(
+//    () =>
+//      axios.create({
+//        baseURL: API_BASE,
+//        headers: token ? { Authorization: `Bearer ${token}` } : {},
+//      }),
+//    [API_BASE, token]
+//  );
+
+// ================= 1) API =================
   const token = localStorage.getItem("token");
   const api = useMemo(
     () =>
@@ -31,6 +50,7 @@ export default function AccountantDashboard() {
     [token]
   );
   const API_BASE = api.defaults.baseURL?.replace(/\/+$/, "") || "";
+
 
   // ================= 2) حالات عامة =================
   const [branches, setBranches] = useState([]);
@@ -52,6 +72,9 @@ export default function AccountantDashboard() {
   const [selectedForm, setSelectedForm] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [attLoading, setAttLoading] = useState(false);
+
+  // مرجع لمحتوى المودال (للتصدير PDF)
+  const modalRef = useRef(null);
 
   // ================= 5) دوال مساعدة =================
   const formatDateOnly = (dateStr) => (dateStr ? new Date(dateStr).toLocaleDateString() : "-");
@@ -111,8 +134,7 @@ export default function AccountantDashboard() {
       // نداء للجدول
       const tableReq = api.get("/api/forms/review", { params: tableParams });
 
-      // نداء للكروت:
-      // لو عايزين "كل الحالات" مهما كان فلتر الحالة، نجيب الثلاث حالات ونجمعهم
+      // نداء للكروت (كل الحالات)
       const cardReqs = ["pending", "released", "rejected"].map((s) =>
         api.get("/api/forms/review", { params: { ...baseParams, status: s } })
       );
@@ -121,11 +143,10 @@ export default function AccountantDashboard() {
 
       setForms(tableRes.data || []);
 
-      // دمج نتائج الكروت من الثلاث حالات
-// دمج نتائج الكروت من الثلاث حالات + إزالة التكرار
-const mergedForCards = cardsRes.flatMap((r) => r?.data || []);
-const uniqueForms = Array.from(new Map(mergedForCards.map(f => [f._id, f])).values());
-setFormsAll(uniqueForms);
+      // دمج نتائج الكروت + إزالة التكرار
+      const mergedForCards = cardsRes.flatMap((r) => r?.data || []);
+      const uniqueForms = Array.from(new Map(mergedForCards.map((f) => [f._id, f])).values());
+      setFormsAll(uniqueForms);
     } catch (e) {
       console.error(e);
       setErrorMsg(e?.response?.data?.message || "تعذّر تحميل التقارير");
@@ -186,6 +207,54 @@ setFormsAll(uniqueForms);
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || "فشل الرفض");
+    }
+  };
+
+  // ================= 12) تصدير PDF بدون أزرار =================
+  const handleExportPDF = async () => {
+    try {
+      const [{ jsPDF }, html2canvasModule] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const html2canvas = html2canvasModule.default;
+
+      const el = modalRef.current;
+      if (!el) return;
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = heightLeft - imgHeight;
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const name = `form-${selectedForm?.branch?.name || "branch"}-${(selectedForm?.formDate || "").slice(0, 10)}.pdf`;
+      pdf.save(name);
+    } catch (err) {
+      console.error(err);
+      alert("تعذّر تصدير الـ PDF. تأكد من تثبيت jspdf و html2canvas.");
     }
   };
 
@@ -329,7 +398,7 @@ setFormsAll(uniqueForms);
             <select
               value={filters.status}
               onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-              className="border rounded-xl px-3 py-2 bg-white text_sm"
+              className="border rounded-xl px-3 py-2 bg-white text-sm"
             >
               <option value="">كل الحالات</option>
               <option value="pending">Pending</option>
@@ -433,111 +502,144 @@ setFormsAll(uniqueForms);
 
       {/* مودال التفاصيل */}
       {selectedForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl">
-            {/* Header: العنوان + زر إغلاق */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">
-                تفاصيل تقرير {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
-              </h3>
-              <button
-                onClick={() => setSelectedForm(null)}
-                className="border px-3 py-1 rounded-xl hover:bg-gray-50"
-              >
-                إغلاق
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
+          <div className="relative bg-white rounded-2xl w-full max-w-3xl shadow-2xl">
+            {/* محتوى قابل للسكرول */}
+            <div className="max-h-[80vh] overflow-y-auto" ref={modalRef}>
+              {/* هيدر ستكي جوّا المودال */}
+              <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b rounded-t-2xl">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold">
+                      تفاصيل تقرير {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
+                    </h3>
+                    {/* يظهر في PDF كعلامة */}
+                    <div className="text-xs text-gray-500">باسم مؤسسة الحواس</div>
+                  </div>
 
-            <div className="grid md:grid-cols-3 gap-3 mb-4">
-              <MiniBox label="العهدة" value={currency(selectedForm.pettyCash)} />
-              <MiniBox label="المشتريات" value={currency(selectedForm.purchases)} />
-              <MiniBox label="التحصيل النقدي" value={currency(selectedForm.cashCollection)} />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-4">
-              <div className="border rounded-xl p-3 bg-white/70">
-                <div className="font-semibold mb-2">التطبيقات</div>
-                {selectedForm.applications?.length ? (
-                  <ul className="space-y-1">
-                    {selectedForm.applications.map((a, idx) => (
-                      <li key={idx} className="flex justify-between">
-                        <span>{a.name}</span>
-                        <span className="font-semibold">{currency(a.amount)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-gray-500">لا يوجد</div>
-                )}
-                <div className="text-right mt-2 font-bold">
-                  الإجمالي: {currency(sumApps(selectedForm) || Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0))}
+                  {/* أزرار مخفية عن لقطة PDF */}
+                  <div className="flex items-center gap-2" data-html2canvas-ignore>
+                    <button
+                      onClick={handleExportPDF}
+                      className="px-3 py-1.5 rounded-xl bg-gray-900 text-white hover:bg-black text-sm"
+                    >
+                      تصدير PDF
+                    </button>
+                    <button
+                      onClick={() => setSelectedForm(null)}
+                      className="border px-3 py-1.5 rounded-xl hover:bg-gray-50 text-sm"
+                    >
+                      إغلاق
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="border rounded-xl p-3 bg-white/70">
-                <div className="font-semibold mb-2">تحصيلات البنك</div>
-                {selectedForm.bankCollections?.length ? (
-                  <ul className="space-y-1">
-                    {selectedForm.bankCollections.map((b, idx) => (
-                      <li key={idx} className="flex justify-between">
-                        <span>{b.name}</span>
-                        <span className="font-semibold">{currency(b.amount)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-gray-500">لا يوجد</div>
-                )}
-                <div className="text-right mt-2 font-bold">
-                  الإجمالي: {currency(sumBank(selectedForm) || Number(selectedForm?.bankTotal || 0))}
+              {/* جسم المودال */}
+              <div className="p-4 sm:p-6">
+                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                  <MiniBox label="العهدة" value={currency(selectedForm.pettyCash)} />
+                  <MiniBox label="المشتريات" value={currency(selectedForm.purchases)} />
+                  <MiniBox label="التحصيل النقدي" value={currency(selectedForm.cashCollection)} />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="border rounded-xl p-3 bg-white/70">
+                    <div className="font-semibold mb-2">التطبيقات</div>
+                    {selectedForm.applications?.length ? (
+                      <ul className="space-y-1">
+                        {selectedForm.applications.map((a, idx) => (
+                          <li key={idx} className="flex justify-between">
+                            <span>{a.name}</span>
+                            <span className="font-semibold">{currency(a.amount)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-sm text-gray-500">لا يوجد</div>
+                    )}
+                    <div className="text-right mt-2 font-bold">
+                      الإجمالي: {currency(sumApps(selectedForm) || Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0))}
+                    </div>
+                  </div>
+
+                  <div className="border rounded-xl p-3 bg-white/70">
+                    <div className="font-semibold mb-2">تحصيلات البنك</div>
+                    {selectedForm.bankCollections?.length ? (
+                      <ul className="space-y-1">
+                        {selectedForm.bankCollections.map((b, idx) => (
+                          <li key={idx} className="flex justify-between">
+                            <span>{b.name}</span>
+                            <span className="font-semibold">{currency(b.amount)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-sm text-gray-500">لا يوجد</div>
+                    )}
+                    <div className="text-right mt-2 font-bold">
+                      الإجمالي: {currency(sumBank(selectedForm) || Number(selectedForm?.bankTotal || 0))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="border rounded-xl p-3 bg-white/70">
+                    <div className="text-gray-500 mb-1">المبيعات الفعلية</div>
+                    <div className="font-bold">
+                      {currency(Number(selectedForm?.cashCollection || 0) + appsWithFallback(selectedForm) + bankWithFallback(selectedForm))}
+                    </div>
+                  </div>
+                  <div className="border rounded-xl p-3 bg-white/70">
+                    <div className="text-gray-500 mb-1">الملاحظات</div>
+                    <div className="whitespace-pre-wrap">{selectedForm.notes || "-"}</div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-3 bg-white/70">
+                  <div className="font-semibold mb-2">المرفقات</div>
+                  {attLoading ? (
+                    <div>جاري التحميل…</div>
+                  ) : attachments?.length ? (
+                    <ul className="space-y-1">
+                      {attachments.map((att) => {
+                        const cleanPath = String(att.fileUrl || "").replace(/\\\\/g, "/");
+                        const fileName = cleanPath.split("/").pop();
+                        const href = `${API_BASE}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
+                        return (
+                          <li key={att._id} className="flex justify-between">
+                            <span>{fileName}</span>
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">فتح</a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="text-sm text-gray-500">لا يوجد مرفقات</div>
+                  )}
+                </div>
+
+                {/* أزرار الإجراءات — مستبعدة من PDF */}
+                <div className="mt-4 flex gap-2 justify-end" data-html2canvas-ignore>
+                  {selectedForm.status !== "released" && (
+                    <button onClick={() => onRelease(selectedForm)} className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">Release</button>
+                  )}
+                  {selectedForm.status !== "rejected" && (
+                    <button onClick={() => onReject(selectedForm)} className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700">Reject</button>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4 mb-4">
-              <div className="border rounded-xl p-3 bg-white/70">
-                <div className="text-gray-500 mb-1">المبيعات الفعلية</div>
-                <div className="font-bold">
-                  {currency(Number(selectedForm?.cashCollection || 0) + appsWithFallback(selectedForm) + bankWithFallback(selectedForm))}
-                </div>
-              </div>
-              <div className="border rounded-xl p-3 bg-white/70">
-                <div className="text-gray-500 mb-1">الملاحظات</div>
-                <div className="whitespace-pre-wrap">{selectedForm.notes || "-"}</div>
-              </div>
-            </div>
-
-            <div className="border rounded-xl p-3 bg-white/70">
-              <div className="font-semibold mb-2">المرفقات</div>
-              {attLoading ? (
-                <div>جاري التحميل…</div>
-              ) : attachments?.length ? (
-                <ul className="space-y-1">
-                  {attachments.map((att) => {
-                    const cleanPath = String(att.fileUrl || "").replace(/\\\\/g, "/");
-                    const fileName = cleanPath.split("/").pop();
-                    const href = `${API_BASE}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
-                    return (
-                      <li key={att._id} className="flex justify-between">
-                        <span>{fileName}</span>
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">فتح</a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="text-sm text-gray-500">لا يوجد مرفقات</div>
-              )}
-            </div>
-
-            <div className="mt-4 flex gap-2 justify-end">
-              {selectedForm.status !== "released" && (
-                <button onClick={() => onRelease(selectedForm)} className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">Release</button>
-              )}
-              {selectedForm.status !== "rejected" && (
-                <button onClick={() => onReject(selectedForm)} className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700">Reject</button>
-              )}
-            </div>
+            {/* زر إغلاق عائم صغير للموبايل (لو الهيدر بعيد) — مستبعد من PDF */}
+            <button
+              onClick={() => setSelectedForm(null)}
+              className="absolute top-2 right-2 sm:hidden bg-white border shadow px-2 py-1 rounded-lg text-xs"
+              aria-label="Close"
+              data-html2canvas-ignore
+            >
+              إغلاق
+            </button>
           </div>
         </div>
       )}
