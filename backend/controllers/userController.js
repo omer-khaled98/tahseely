@@ -123,13 +123,14 @@ const updateUser = async (req, res) => {
       user.email = emailLower;
     }
 
-    if (role) {
-      const allowedRoles = ["User", "Accountant", "Admin"];
-      if (!allowedRoles.includes(role)) {
-        return res.status(400).json({ message: "Invalid role" });
-      }
-      user.role = role;
-    }
+if (role) {
+  const allowedRoles = ["User", "Accountant", "Admin", "BranchManager"]; // ✅
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+  user.role = role;
+}
+
 
     if (name) {
       user.name = name.trim();

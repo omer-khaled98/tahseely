@@ -57,10 +57,10 @@ export default function UserDashboard() {
   const [formData, setFormData] = useState({
     formDate: new Date().toISOString().split("T")[0],
     branch: "",
-    pettyCash: 0,
-    purchases: 0,
-    cashCollection: 0,
-    actualSales: 0,
+    pettyCash: "",
+    purchases: "",
+    cashCollection: "",
+    actualSales: "",
     notes: "",
   });
 

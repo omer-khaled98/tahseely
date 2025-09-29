@@ -726,7 +726,7 @@ function UsersPage({ api, isAdmin }) {
                 <option value="User">User</option>
                 <option value="Accountant">Accountant</option>
                 <option value="Admin">Admin</option>
-                <option value="BranchManager">Branch Manager</option>
+                <option value="BranchManager">BranchManager</option>
               </select>
               <div>
                 <p className="mb-1 text-sm">الفروع المصرّح بها</p>
