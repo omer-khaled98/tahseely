@@ -9,6 +9,7 @@ connectDB();
 
 const app = express();
 const allowedOrigins = [
+  "http://localhost:3000",   // ✅ أضف ده للـ local
   "https://tahseely.al-hawas-eg.cloud",
   process.env.FRONT_URL,
 ];

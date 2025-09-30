@@ -7,6 +7,12 @@ import AdminDashboard from "./pages/AdminDashboard";
 import BranchManagerDashboard from "./pages/BranchManagerDashboard"; // ✅ جديد
 import ProtectedRoute from "./ProtectedRoute";
 
+// ✅ متغير عام يحدد الـ API URL حسب المكان اللي الكود شغال فيه
+export const apiUrl =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000" // لو شغال محلي
+    : "https://tahseely.al-hawas-eg.cloud"; // لو شغال على السيرفر
+
 function App() {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");

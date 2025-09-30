@@ -13,19 +13,20 @@ export default function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/login`,
-        {
-          email,
-          password,
-        }
-      );
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
+  // ✅ اجلب القيمة من .env أو استخدم localhost كـ fallback
+  const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  console.log("🔧 API URL المستخدم =", apiUrl);
+
+  try {
+    const res = await axios.post(`${apiUrl}/api/auth/login`, {
+      email,
+      password,
+    });
       // حفظ التوكن والدور والاسم (لو متاح)
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
