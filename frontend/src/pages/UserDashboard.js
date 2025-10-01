@@ -201,9 +201,9 @@ export default function UserDashboard() {
       setForms((prev) => [...prev, createdForm]);
       setFormData((d) => ({
         ...d,
-        pettyCash: 0,
-        purchases: 0,
-        cashCollection: 0,
+        pettyCash: "",
+        purchases: "",
+        cashCollection: "",
         actualSales: 0,
         notes: "",
       }));
@@ -653,6 +653,12 @@ function StatCard({ icon, title, value, tint }) {
 }
 
 function UploadBox({ label, value, onChange, fileKey, setFiles }) {
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) {
+      setFiles((p) => ({ ...p, [fileKey]: e.target.files[0] }));
+    }
+  };
+
   return (
     <div>
       <label className="block text-sm font-medium mb-1">{label}</label>
@@ -660,18 +666,41 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border p-2 rounded-xl w-full"
+        className="border p-2 rounded-xl w-full mb-2"
       />
-      <input
-        type="file"
-        className="mt-2"
-        onChange={(e) =>
-          setFiles((p) => ({ ...p, [fileKey]: e.target.files[0] }))
-        }
-      />
+
+      <div className="flex gap-2">
+        {/* زر رفع ملف */}
+        <label className="flex-1">
+          <input
+            type="file"
+            accept="*/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <span className="block w-full text-center px-3 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 cursor-pointer text-sm">
+            📎 رفع ملف
+          </span>
+        </label>
+
+        {/* زر التصوير بالكاميرا */}
+        <label className="flex-1">
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <span className="block w-full text-center px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer text-sm">
+            📷 تصوير
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
+
 
 function DynamicRows({
   title,

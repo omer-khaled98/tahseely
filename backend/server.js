@@ -9,10 +9,12 @@ connectDB();
 
 const app = express();
 const allowedOrigins = [
-  "http://localhost:3000",   // ✅ أضف ده للـ local
+  "http://localhost:3000",
+  "http://192.168.1.70:3000",  
   "https://tahseely.al-hawas-eg.cloud",
   process.env.FRONT_URL,
 ];
+
 
 app.use(
   cors({
@@ -52,4 +54,6 @@ app.get("/", (req, res) => {
 
 // 🟡 Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`✅ Server running on http://192.168.1.70:${PORT}`)
+);

@@ -14,38 +14,35 @@ const storage = multer.diskStorage({
   },
 });
 
-// 🟢 فلتر الملفات (صور + PDF)
+// 🟢 فلتر الملفات (يقبل كل الصيغ)
 const fileFilter = (req, file, cb) => {
-  const ext = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = [
-    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff",
-    ".heic", ".heif", // دعم صور الآيفون
-    ".pdf"
-  ];
-
-  if (allowedExtensions.includes(ext)) {
-    cb(null, true);
-  } else {
-    cb(new Error("صيغة الملف غير مدعومة"), false);
-  }
+  cb(null, true); // السماح بأي امتداد
 };
 
-const upload = multer({ storage, fileFilter });
+// 🚀 إعدادات Multer (20MB max)
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
 
-// 🟣 ميدل وير بعد الرفع: HEIC → JPG وضغط باقي الصور
+// 🟣 ميدل وير بعد الرفع: معالجة الصور فقط
 const processImage = async (req, res, next) => {
   try {
     if (!req.file) return next();
 
     const ext = path.extname(req.file.originalname).toLowerCase();
-    const isPdf = ext === ".pdf";
-    const isHeic = ext === ".heic" || ext === ".heif";
 
-    if (isPdf) return next(); // ✅ PDF يترفع زي ما هو
+    // ✅ لو مش صورة، عدي زي ما هو
+    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".heic", ".heif"];
+    if (!imageExts.includes(ext)) {
+      return next();
+    }
 
     let outputPath = req.file.path;
 
-    if (isHeic) {
+    // 🔄 لو HEIC → JPG
+    if (ext === ".heic" || ext === ".heif") {
       try {
         const inputBuffer = fs.readFileSync(req.file.path);
         const outputBuffer = await heicConvert({
@@ -64,6 +61,7 @@ const processImage = async (req, res, next) => {
         console.warn("⚠️ HEIC convert failed, keeping original:", e.message);
       }
     } else {
+      // 📉 ضغط باقي الصور لـ JPG
       try {
         const outputBuffer = await sharp(req.file.path)
           .resize({
