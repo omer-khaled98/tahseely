@@ -25,7 +25,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+allowedHeaders: ["Content-Type", "Authorization", "X-Debug-ReqId"],
   })
 );
 app.use(express.json());
@@ -34,7 +34,7 @@ app.use(express.json());
 console.log("📂 __dirname:", __dirname);
 console.log("📂 Uploads path:", path.join(__dirname, "uploads"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
+  
 // 🟢 Routes
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/branches", require("./routes/branchRoutes"));
