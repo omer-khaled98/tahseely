@@ -20,6 +20,7 @@ export default function BranchManagerDashboard() {
   const api = useApi();
   const [tab, setTab] = useState("dashboard");
   const meName = localStorage.getItem("userName") || "مدير فرع";
+  const [menuOpen, setMenuOpen] = useState(false); // Burger Menu state
 
   const handleLogout = () => {
     localStorage.clear();
@@ -41,7 +42,7 @@ export default function BranchManagerDashboard() {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Tabs Desktop */}
           <nav className="hidden md:flex items-center gap-1">
             <NavBtn
               icon={<LayoutDashboard size={16} />}
@@ -74,8 +75,47 @@ export default function BranchManagerDashboard() {
               <LogOut size={16} />
               <span>تسجيل خروج</span>
             </button>
+
+            {/* Burger Menu (Mobile) */}
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 rounded-lg border bg-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   fill="none" viewBox="0 0 24 24"
+                   strokeWidth={1.5} stroke="currentColor"
+                   className="w-6 h-6">
+                <path strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {menuOpen && (
+          <div className="md:hidden bg-white border-t shadow flex flex-col">
+            <button
+              onClick={() => { setTab("dashboard"); setMenuOpen(false); }}
+              className="px-4 py-3 text-left hover:bg-gray-100"
+            >
+              لوحة التحكم
+            </button>
+            <button
+              onClick={() => { setTab("receipts"); setMenuOpen(false); }}
+              className="px-4 py-3 text-left hover:bg-gray-100"
+            >
+              تقارير المحاسب
+            </button>
+            <button
+              onClick={() => { setTab("released"); setMenuOpen(false); }}
+              className="px-4 py-3 text-left hover:bg-gray-100"
+            >
+              تقارير Released
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Content */}
@@ -105,7 +145,7 @@ function NavBtn({ icon, label, active, onClick }) {
   );
 }
 
-/* ---------- Dashboard (إحصائيات بسيطة) ---------- */
+/* ---------- Dashboard ---------- */
 function DashboardHome({ api }) {
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
@@ -146,7 +186,7 @@ function StatCard({ title, value }) {
   );
 }
 
-/* ---------- Receipts (عرض + Release/Reject + Modal تفاصيل + مرفقات) ---------- */
+/* ---------- Receipts View ---------- */
 function ReceiptsView({ api }) {
   const [forms, setForms] = useState([]);
   const [filters, setFilters] = useState({ q: "", startDate: "", endDate: "" });
@@ -157,9 +197,7 @@ function ReceiptsView({ api }) {
   const fetchForms = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/forms/branch-manager", {
-        params: filters,
-      });
+      const res = await api.get("/api/forms/branch-manager", { params: filters });
       setForms(res.data || []);
     } catch (e) {
       console.error(e);
@@ -202,48 +240,23 @@ function ReceiptsView({ api }) {
     }
   };
 
-  // 📊 الإحصائيات
   const stats = useMemo(() => {
     return {
       total: forms.length,
-      released: forms.filter(
-        (f) => f.branchManagerRelease?.status === "released"
-      ).length,
-      rejected: forms.filter(
-        (f) => f.branchManagerRelease?.status === "rejected"
-      ).length,
-      pending: forms.filter(
-        (f) =>
-          !f.branchManagerRelease ||
-          f.branchManagerRelease.status === "pending"
-      ).length,
+      released: forms.filter((f) => f.branchManagerRelease?.status === "released").length,
+      rejected: forms.filter((f) => f.branchManagerRelease?.status === "rejected").length,
+      pending: forms.filter((f) => !f.branchManagerRelease || f.branchManagerRelease.status === "pending").length,
     };
   }, [forms]);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <ColorCard
-          title="إجمالي"
-          value={stats.total}
-          color="from-gray-500 to-gray-700"
-        />
-        <ColorCard
-          title="في الانتظار"
-          value={stats.pending}
-          color="from-amber-400 to-yellow-500"
-        />
-        <ColorCard
-          title="تمت الموافقة"
-          value={stats.released}
-          color="from-emerald-500 to-green-600"
-        />
-        <ColorCard
-          title="مرفوضة"
-          value={stats.rejected}
-          color="from-rose-500 to-red-600"
-        />
+        <ColorCard title="إجمالي" value={stats.total} color="from-gray-500 to-gray-700" />
+        <ColorCard title="في الانتظار" value={stats.pending} color="from-amber-400 to-yellow-500" />
+        <ColorCard title="تمت الموافقة" value={stats.released} color="from-emerald-500 to-green-600" />
+        <ColorCard title="مرفوضة" value={stats.rejected} color="from-rose-500 to-red-600" />
       </section>
 
       {/* Filters */}
@@ -256,26 +269,20 @@ function ReceiptsView({ api }) {
           <input
             type="text"
             value={filters.q}
-            onChange={(e) =>
-              setFilters((p) => ({ ...p, q: e.target.value }))
-            }
+            onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))}
             placeholder="بحث…"
             className="border rounded-xl px-3 py-2 bg-white text-sm"
           />
           <input
             type="date"
             value={filters.startDate}
-            onChange={(e) =>
-              setFilters((p) => ({ ...p, startDate: e.target.value }))
-            }
+            onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))}
             className="border rounded-xl px-3 py-2 bg-white text-sm"
           />
           <input
             type="date"
             value={filters.endDate}
-            onChange={(e) =>
-              setFilters((p) => ({ ...p, endDate: e.target.value }))
-            }
+            onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))}
             className="border rounded-xl px-3 py-2 bg-white text-sm"
           />
         </div>
@@ -299,11 +306,7 @@ function ReceiptsView({ api }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="p-4 text-center">
-                    جاري التحميل…
-                  </td>
-                </tr>
+                <tr><td colSpan={7} className="p-4 text-center">جاري التحميل…</td></tr>
               ) : forms.length ? (
                 forms.map((f) => (
                   <tr key={f._id} className="text-center">
@@ -312,71 +315,37 @@ function ReceiptsView({ api }) {
                     <td className="p-2 border">{f.user?.name || "-"}</td>
                     <td className="p-2 border">{currency(rowTotal(f))}</td>
                     <td className="p-2 border">
-                      {f.branchManagerRelease?.status === "released" && (
-                        <span className="text-emerald-600">✔ تمت</span>
-                      )}
-                      {f.branchManagerRelease?.status === "rejected" && (
-                        <span className="text-rose-600">✘ مرفوض</span>
-                      )}
-                      {!f.branchManagerRelease ||
-                      f.branchManagerRelease.status === "pending" ? (
-                        <span className="text-amber-500">⏳ انتظار</span>
-                      ) : null}
+                      {f.branchManagerRelease?.status === "released" && <span className="text-emerald-600">✔ تمت</span>}
+                      {f.branchManagerRelease?.status === "rejected" && <span className="text-rose-600">✘ مرفوض</span>}
+                      {!f.branchManagerRelease || f.branchManagerRelease.status === "pending" ? <span className="text-amber-500">⏳ انتظار</span> : null}
                     </td>
                     <td className="p-2 border">
-                      {(!f.branchManagerRelease ||
-                        f.branchManagerRelease.status === "pending") && (
+                      {(!f.branchManagerRelease || f.branchManagerRelease.status === "pending") && (
                         <>
-                          <button
-                            onClick={() => handleRelease(f._id)}
-                            className="px-2 py-1 text-xs bg-emerald-600 text-white rounded"
-                          >
-                            Release
-                          </button>
-                          <button
-                            onClick={() => handleReject(f._id)}
-                            className="px-2 py-1 text-xs bg-rose-600 text-white rounded ml-2"
-                          >
-                            Reject
-                          </button>
+                          <button onClick={() => handleRelease(f._id)} className="px-2 py-1 text-xs bg-emerald-600 text-white rounded">Release</button>
+                          <button onClick={() => handleReject(f._id)} className="px-2 py-1 text-xs bg-rose-600 text-white rounded ml-2">Reject</button>
                         </>
                       )}
                     </td>
                     <td className="p-2 border">
-                      <button
-                        onClick={() => {
-                          setSelectedForm(f);
-                          fetchAttachments(f._id);
-                        }}
-                        className="px-2 py-1 text-xs bg-sky-600 text-white rounded"
-                      >
-                        عرض
-                      </button>
+                      <button onClick={() => { setSelectedForm(f); fetchAttachments(f._id); }}
+                              className="px-2 py-1 text-xs bg-sky-600 text-white rounded">عرض</button>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="p-4 text-center text-gray-500"
-                  >
-                    لا توجد نتائج
-                  </td>
-                </tr>
+                <tr><td colSpan={7} className="p-4 text-center text-gray-500">لا توجد نتائج</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* Modal تفاصيل */}
+      {/* Modal */}
       {selectedForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 relative">
             <h3 className="text-lg font-bold mb-4">تفاصيل التقرير</h3>
-
-            {/* تفاصيل الفورم */}
             <div className="space-y-2 text-sm">
               <p><b>التاريخ:</b> {formatDateOnly(selectedForm.formDate)}</p>
               <p><b>الفرع:</b> {selectedForm.branch?.name}</p>
@@ -389,20 +358,14 @@ function ReceiptsView({ api }) {
               <p><b>الإجمالي:</b> {currency(rowTotal(selectedForm))}</p>
               <p><b>ملاحظات:</b> {selectedForm.notes || "-"}</p>
             </div>
-
-            {/* المرفقات */}
             <div className="mt-4">
               <h4 className="font-semibold mb-2">المرفقات</h4>
               {attachments.length ? (
                 <ul className="space-y-1 text-sm">
                   {attachments.map((att) => (
                     <li key={att._id}>
-                      <a
-                        href={`${process.env.REACT_APP_API_URL}${att.fileUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline"
-                      >
+                      <a href={`${process.env.REACT_APP_API_URL}${att.fileUrl}`}
+                         target="_blank" rel="noopener noreferrer">
                         {att.fileUrl.split("/").pop()}
                       </a>
                     </li>
@@ -412,33 +375,10 @@ function ReceiptsView({ api }) {
                 <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
               )}
             </div>
-
-            {/* الأزرار */}
             <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setSelectedForm(null)}
-                className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
-              >
-                إغلاق
-              </button>
-              <button
-                onClick={() => {
-                  handleRelease(selectedForm._id);
-                  setSelectedForm(null);
-                }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                Release
-              </button>
-              <button
-                onClick={() => {
-                  handleReject(selectedForm._id);
-                  setSelectedForm(null);
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
-              >
-                Reject
-              </button>
+              <button onClick={() => setSelectedForm(null)} className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300">إغلاق</button>
+              <button onClick={() => { handleRelease(selectedForm._id); setSelectedForm(null); }} className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">Release</button>
+              <button onClick={() => { handleReject(selectedForm._id); setSelectedForm(null); }} className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700">Reject</button>
             </div>
           </div>
         </div>
@@ -447,7 +387,7 @@ function ReceiptsView({ api }) {
   );
 }
 
-/* ---------- Released Reports (عرض فقط) ---------- */
+/* ---------- Released Reports ---------- */
 function ReleasedReports({ api }) {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -456,9 +396,7 @@ function ReleasedReports({ api }) {
     setLoading(true);
     try {
       const res = await api.get("/api/forms/branch-manager");
-      const released = (res.data || []).filter(
-        (f) => f.branchManagerRelease?.status === "released"
-      );
+      const released = (res.data || []).filter((f) => f.branchManagerRelease?.status === "released");
       setForms(released);
     } catch (e) {
       console.error(e);
@@ -473,9 +411,7 @@ function ReleasedReports({ api }) {
 
   return (
     <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-      <h3 className="font-semibold mb-3">
-        تقارير Released ({forms.length})
-      </h3>
+      <h3 className="font-semibold mb-3">تقارير Released ({forms.length})</h3>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
@@ -489,11 +425,7 @@ function ReleasedReports({ api }) {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={5} className="p-4 text-center">
-                  جاري التحميل…
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="p-4 text-center">جاري التحميل…</td></tr>
             ) : forms.length ? (
               forms.map((f) => (
                 <tr key={f._id} className="text-center">
@@ -505,14 +437,7 @@ function ReleasedReports({ api }) {
                 </tr>
               ))
             ) : (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="p-4 text-center text-gray-500"
-                >
-                  لا توجد تقارير Released
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="p-4 text-center text-gray-500">لا توجد تقارير Released</td></tr>
             )}
           </tbody>
         </table>
@@ -521,12 +446,10 @@ function ReleasedReports({ api }) {
   );
 }
 
-/* ---------- Card ملونة ---------- */
+/* ---------- ColorCard ---------- */
 function ColorCard({ title, value, color }) {
   return (
-    <div
-      className={`rounded-2xl p-4 shadow text-white bg-gradient-to-tr ${color}`}
-    >
+    <div className={`rounded-2xl p-4 shadow text-white bg-gradient-to-tr ${color}`}>
       <p className="text-xs">{title}</p>
       <h4 className="text-2xl font-bold">{value}</h4>
     </div>

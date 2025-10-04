@@ -112,6 +112,7 @@ const api = useApi();
             <NavBtn icon={<Building2 size={16} />} label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
             <NavBtn icon={<Layers3 size={16} />} label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
             <NavBtn icon={<FileText size={16} />} label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />
+            <NavBtn icon={<Layers3 size={16} />} label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} />
           </nav>
 
           <div className="flex items-center gap-4">
@@ -130,6 +131,7 @@ const api = useApi();
           <SmallNavBtn label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
           <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
           <SmallNavBtn label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />
+          <SmallNavBtn label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} /> {/* ✅ أضف السطر ده */}
         </div>
       </header>
 
@@ -141,6 +143,7 @@ const api = useApi();
         {tab === "branches" && <BranchesPage api={api} isAdmin={isAdmin} />}
         {tab === "templates" && <TemplatesPage api={api} isAdmin={isAdmin} />}
         {tab === "adminReports" && <AdminReports api={api} isAdmin={isAdmin} />}
+        {tab === "allForms" && <AllFormsPage api={api} isAdmin={isAdmin} />}
       </main>
     </div>
   );
@@ -429,6 +432,7 @@ function AdminReceipts({ api, isAdmin }) {
           </table>
         </div>
       </section>
+      
 
       {/* Modal */}
       {activeForm && (
@@ -1171,6 +1175,255 @@ const sums = useMemo(()=> rows.reduce((a,f)=>{
                 })
               ) : (
                 <tr><td colSpan={7} className="p-4 text-center text-gray-500">لا توجد نتائج</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+/* ---------------- FIXED & ENHANCED + STATUS FILTER: AllFormsPage ---------------- */
+function AllFormsPage({ api, isAdmin }) {
+  const [rows, setRows] = useState([]);
+  const [filters, setFilters] = useState({ q: "", branchId: "", userId: "", status: "" });
+  const [branches, setBranches] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [b, u] = await Promise.all([
+          api.get("/api/branches"),
+          api.get("/api/users"),
+        ]);
+        setBranches(b.data || []);
+        setUsers(u.data || []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [api]);
+
+const fetchAll = async () => {
+  setLoading(true);
+  try {
+    // نبدأ من نسخة الفلاتر الأصلية
+    const params = { ...filters };
+
+    // 🧠 ترجمة فلتر الحالة حسب المنطق الفعلي للفورمات
+    if (filters.status === "pending") {
+      // في انتظار المحاسب
+      params["accountantRelease.status"] = "pending";
+    } 
+    else if (filters.status === "waitingBranch") {
+      // في انتظار مدير الفرع بعد موافقة المحاسب
+      params["accountantRelease.status"] = "released";
+      params["branchManagerRelease.status"] = "pending";
+    } 
+    else if (filters.status === "released") {
+      // تم الاعتماد النهائي من الأدمن (release نهائي)
+      params["adminRelease.status"] = "released";
+      params.status = "released"; // لتأكيد التطابق مع الفورمز النهائية
+    } 
+    else if (filters.status === "rejected") {
+      // مرفوضة من أي مستوى (محاسب / مدير فرع / أدمن)
+      params.$or = [
+        { "accountantRelease.status": "rejected" },
+        { "branchManagerRelease.status": "rejected" },
+        { "adminRelease.status": "rejected" },
+        { status: "rejected" },
+      ];
+    }
+
+    const res = await api.get("/api/forms/all", { params });
+    setRows(res.data || []);
+    console.log("[AllForms] count =", res.data?.length, "| filters =", params);
+  } catch (e) {
+    console.error("[AllForms] error", e?.response?.data || e?.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchAll();
+}, [filters]);
+
+  const deleteForm = async (id) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا التقرير نهائيًا؟")) return;
+    try {
+      await api.delete(`/api/forms/${id}/delete`);
+      toast.success("تم الحذف بنجاح ✅");
+      setRows((p) => p.filter((x) => x._id !== id));
+    } catch (e) {
+      toast.error("فشل الحذف ❌");
+      console.error(e);
+    }
+  };
+
+  // 🧩 تحديد الحالة النصية للفاتورة
+  const getStatusText = (f) => {
+    if (f.accountantRelease?.status !== "released")
+      return (
+        <span className="text-amber-600">
+          <i className="fas fa-user-tie mr-1"></i>في انتظار موافقة المحاسب
+        </span>
+      );
+    if (f.branchManagerRelease?.status !== "released")
+      return (
+        <span className="text-blue-600">
+          <i className="fas fa-user-shield mr-1"></i>في انتظار موافقة مدير الفرع
+        </span>
+      );
+    if (f.adminRelease?.status === "released")
+      return (
+        <span className="text-green-600">
+          <i className="fas fa-check-circle mr-1"></i>تم اعتمادها نهائيًا
+        </span>
+      );
+    if (f.status === "rejected")
+      return (
+        <span className="text-rose-600">
+          <i className="fas fa-times-circle mr-1"></i>مرفوضة
+        </span>
+      );
+    return (
+      <span className="text-gray-500">
+        <i className="fas fa-hourglass-half mr-1"></i>قيد الانتظار
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+{/* 🔍 الفلاتر */}
+<section className="bg-white/80 rounded-2xl border p-4 shadow-sm">
+  <div className="flex items-center gap-2 mb-3 text-gray-600">
+    <i className="fas fa-filter text-gray-500"></i>
+    <b>فلاتر جميع الفواتير</b>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+    {/* 🔎 البحث */}
+    <input
+      value={filters.q}
+      onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))}
+      placeholder="بحث بالملاحظات"
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    />
+
+    {/* 🏢 الفرع */}
+    <select
+      value={filters.branchId}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, branchId: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    >
+      <option value="">كل الفروع</option>
+      {branches.map((b) => (
+        <option key={b._id} value={b._id}>
+          {b.name}
+        </option>
+      ))}
+    </select>
+
+    {/* 👤 المستخدم */}
+    <select
+      value={filters.userId}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, userId: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    >
+      <option value="">كل المستخدمين</option>
+      {users.map((u) => (
+        <option key={u._id} value={u._id}>
+          {u.name}
+        </option>
+      ))}
+    </select>
+
+    {/* 📊 الحالة */}
+    <select
+      value={filters.status}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, status: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    >
+      <option value="">كل الحالات</option>
+      <option value="pending">⏳ في انتظار المحاسب</option>
+      <option value="waitingBranch">🧍‍♂️ في انتظار مدير الفرع</option>
+      <option value="released">✅ تم الاعتماد النهائي</option>
+      <option value="rejected">❌ مرفوضة</option>
+    </select>
+
+    {/* 🔄 تحديث */}
+    <button
+      onClick={fetchAll}
+      className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+    >
+      <i className="fas fa-sync-alt"></i>
+      <span>تحديث</span>
+    </button>
+  </div>
+</section>
+
+
+      {/* 🧾 جدول الفواتير */}
+      <section className="bg-white/80 rounded-2xl border p-4 shadow-sm">
+        <h3 className="font-semibold mb-3">
+          <i className="fas fa-file-invoice-dollar mr-2 text-gray-700"></i>
+          كل الفواتير في النظام
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 border">التاريخ</th>
+                <th className="p-2 border">الفرع</th>
+                <th className="p-2 border">المستخدم</th>
+                <th className="p-2 border">الحالة الحالية</th>
+                <th className="p-2 border">إجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center p-4">
+                    <i className="fas fa-spinner fa-spin text-gray-500"></i>{" "}
+                    جاري التحميل...
+                  </td>
+                </tr>
+              ) : rows.length ? (
+                rows.map((f) => (
+                  <tr key={f._id} className="text-center hover:bg-gray-50">
+                    <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
+                    <td className="p-2 border">{f.branch?.name || "-"}</td>
+                    <td className="p-2 border">{f.user?.name || "-"}</td>
+                    <td className="p-2 border">{getStatusText(f)}</td>
+                    <td className="p-2 border">
+                      <button
+                        onClick={() => deleteForm(f._id)}
+                        className="bg-rose-600 text-white px-3 py-1 rounded-xl hover:bg-rose-700"
+                      >
+                        <i className="fas fa-trash-alt mr-1"></i>مسح نهائي
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="text-center p-4 text-gray-500 italic"
+                  >
+                    <i className="fas fa-inbox mr-2"></i>لا توجد فواتير حاليًا
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

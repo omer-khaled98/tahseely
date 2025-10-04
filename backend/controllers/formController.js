@@ -345,8 +345,9 @@ const listFormsForReview = async (req, res) => {
       if (startDate) filters.formDate.$gte = new Date(startDate);
       if (endDate) filters.formDate.$lte = new Date(endDate);
     }
-    if (status === "released") filters.status = "released";
-    else filters.status = { $nin: ["rejected"] };
+if (status) {
+  filters.status = status;
+}
 
     const forms = await Form.find(filters)
       .populate("branch", "name")
@@ -423,6 +424,70 @@ const listFormsForBranchManager = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+// 🟣 Admin — كل الفواتير
+// 🟣 Admin — كل الفواتير
+const listAllForms = async (req, res) => {
+  try {
+    const { branchId, userId, startDate, endDate, q = "", status = "" } = req.query;
+    const filters = {};
+
+    if (branchId) filters.branch = branchId;
+    if (userId) filters.user = userId;
+    if (startDate || endDate) {
+      filters.formDate = {};
+      if (startDate) filters.formDate.$gte = new Date(startDate);
+      if (endDate) filters.formDate.$lte = new Date(endDate);
+    }
+
+    // 🟡 فلترة حسب الحالة
+    if (status) {
+      if (status === "pending") {
+        // في انتظار المحاسب
+        filters["accountantRelease.status"] = { $ne: "released" };
+      } else if (status === "waitingBranch") {
+        // في انتظار مدير الفرع
+        filters["accountantRelease.status"] = "released";
+        filters["branchManagerRelease.status"] = { $ne: "released" };
+      } else if (status === "released") {
+        // تم الاعتماد النهائي
+        filters["adminRelease.status"] = "released";
+      } else if (status === "rejected") {
+        // مرفوضة
+        filters.status = "rejected";
+      }
+    }
+
+    if (q.trim()) {
+      const rx = new RegExp(q.trim(), "i");
+      filters.notes = rx;
+    }
+
+    const forms = await Form.find(filters)
+      .populate("branch", "name")
+      .populate("user", "name")
+      .sort({ createdAt: -1 });
+
+    return res.json(forms.map(mapOut));
+  } catch (error) {
+    console.error("❌ listAllForms error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// 🔴 Admin — حذف فورم نهائي
+const deleteFormPermanently = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Form.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: "Form not found" });
+    return res.json({ message: "Form deleted permanently ✅" });
+  } catch (error) {
+    console.error("❌ deleteFormPermanently error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 
 module.exports = {
   createForm,
@@ -437,4 +502,6 @@ module.exports = {
   listFormsForReview,
   listFormsForAdmin,
   listFormsForBranchManager,
+  listAllForms,
+  deleteFormPermanently,
 };

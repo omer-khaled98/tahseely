@@ -2,6 +2,9 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import { LogOut, Filter, Search, CheckCircle2, XCircle, Clock3, FileText } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+
 
 // ===== Chart.js setup =====
 import {
@@ -19,52 +22,34 @@ import {
 import { Pie, Bar, Line } from "react-chartjs-2";
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, ChartTooltip, ChartLegend, LineElement, PointElement, Filler);
 
+// ===== PDF tools =====
+
 export default function AccountantDashboard() {
   // ================= 1) API =================
-  //const token = localStorage.getItem("token");
-
-  // ✅ Server-safe base URL (بدون إجبار localhost)
-//  const API_BASE = (
-//    import.meta?.env?.VITE_API_URL ||
-//    process?.env?.REACT_APP_API_URL ||
-//    window.location.origin
-//  ).replace(/\/+$/, "");
-//
-//  const api = useMemo(
-//    () =>
-//      axios.create({
-//        baseURL: API_BASE,
-//        headers: token ? { Authorization: `Bearer ${token}` } : {},
-//      }),
-//    [API_BASE, token]
-//  );
-
-// ================= 1) API =================
   const token = localStorage.getItem("token");
   const api = useMemo(
     () =>
       axios.create({
-        baseURL: process.env.REACT_APP_API_URL ||"http://localhost:5000",
+        baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000",
         headers: { Authorization: `Bearer ${token}` },
       }),
     [token]
   );
   const API_BASE = api.defaults.baseURL?.replace(/\/+$/, "") || "";
 
-
   // ================= 2) حالات عامة =================
   const [branches, setBranches] = useState([]);
-  const [forms, setForms] = useState([]);        // البيانات المعروضة في الجدول (حسب الفلاتر)
+  const [forms, setForms] = useState([]);        // البيانات المعروضة في الجدول
   const [formsAll, setFormsAll] = useState([]);  // بيانات الكروت (كل الحالات)
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ================= 3) فلاتر (افتراضي: كل الحالات) =================
+  // ================= 3) فلاتر =================
   const [filters, setFilters] = useState({
     branchId: "",
     startDate: "",
     endDate: "",
-    status: "", // عرض كل الحالات افتراضيًا في الجدول لو فضّلت كده
+    status: "",
     q: "",
   });
 
@@ -72,8 +57,6 @@ export default function AccountantDashboard() {
   const [selectedForm, setSelectedForm] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [attLoading, setAttLoading] = useState(false);
-
-  // مرجع لمحتوى المودال (للتصدير PDF)
   const modalRef = useRef(null);
 
   // ================= 5) دوال مساعدة =================
@@ -87,12 +70,10 @@ export default function AccountantDashboard() {
     const calc = sumApps(f);
     return calc > 0 ? calc : Number(f?.appsTotal || f?.appsCollection || 0);
   };
-
   const bankWithFallback = (f) => {
     const calc = sumBank(f);
     return calc > 0 ? calc : Number(f?.bankTotal || 0);
   };
-
   const rowTotal = (f) => Number(f?.cashCollection || 0) + appsWithFallback(f) + bankWithFallback(f);
 
   // ================= Navbar =================
@@ -114,36 +95,29 @@ export default function AccountantDashboard() {
     })();
   }, [api]);
 
-  // ================= 7) جلب التقارير (جدول + كروت) =================
+  // ================= 7) جلب التقارير =================
   const fetchForms = async () => {
     setLoading(true);
     setErrorMsg("");
 
-    // نبني بارامز مشتركة (من غير status) عشان الكروت
     const baseParams = {};
     if (filters.branchId) baseParams.branchId = filters.branchId;
     if (filters.startDate) baseParams.startDate = filters.startDate;
     if (filters.endDate) baseParams.endDate = filters.endDate;
     if (filters.q) baseParams.q = filters.q;
 
-    // بارامز الجدول (تتضمن الحالة لو موجودة)
     const tableParams = { ...baseParams };
     if (filters.status) tableParams.status = filters.status;
 
     try {
-      // نداء للجدول
       const tableReq = api.get("/api/forms/review", { params: tableParams });
-
-      // نداء للكروت (كل الحالات)
       const cardReqs = ["pending", "released", "rejected"].map((s) =>
         api.get("/api/forms/review", { params: { ...baseParams, status: s } })
       );
 
       const [tableRes, ...cardsRes] = await Promise.all([tableReq, ...cardReqs]);
-
       setForms(tableRes.data || []);
 
-      // دمج نتائج الكروت + إزالة التكرار
       const mergedForCards = cardsRes.flatMap((r) => r?.data || []);
       const uniqueForms = Array.from(new Map(mergedForCards.map((f) => [f._id, f])).values());
       setFormsAll(uniqueForms);
@@ -157,7 +131,6 @@ export default function AccountantDashboard() {
     }
   };
 
-  // ================= 8) تحميل أولي + عند تغيير الفلاتر =================
   useEffect(() => {
     fetchForms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,7 +150,6 @@ export default function AccountantDashboard() {
     }
   };
 
-  // ================= 10) فتح تفاصيل =================
   const openDetails = (f) => {
     setSelectedForm(f);
     fetchAttachments(f._id);
@@ -187,7 +159,7 @@ export default function AccountantDashboard() {
   const onRelease = async (f) => {
     if (!window.confirm("تأكيد عمل Release للتقرير؟")) return;
     try {
-      const res = await api.patch(`/api/forms/${f._id}/release`);
+      const res = await api.patch(`/api/forms/${f._id}/release`, { action: "release" });
       alert("تم عمل Release بنجاح");
       fetchForms();
       if (selectedForm && selectedForm._id === f._id) setSelectedForm(res.data?.form || res.data);
@@ -200,7 +172,7 @@ export default function AccountantDashboard() {
   const onReject = async (f) => {
     if (!window.confirm("تأكيد عمل Reject للتقرير؟")) return;
     try {
-      const res = await api.patch(`/api/forms/${f._id}/reject`);
+      const res = await api.patch(`/api/forms/${f._id}/reject`, { action: "reject" });
       alert("تم رفض التقرير");
       fetchForms();
       if (selectedForm && selectedForm._id === f._id) setSelectedForm(res.data?.form || res.data);
@@ -210,15 +182,9 @@ export default function AccountantDashboard() {
     }
   };
 
-  // ================= 12) تصدير PDF بدون أزرار =================
+  // ================= PDF Export =================
   const handleExportPDF = async () => {
     try {
-      const [{ jsPDF }, html2canvasModule] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
-      ]);
-      const html2canvas = html2canvasModule.default;
-
       const el = modalRef.current;
       if (!el) return;
 
@@ -254,22 +220,21 @@ export default function AccountantDashboard() {
       pdf.save(name);
     } catch (err) {
       console.error(err);
-      alert("تعذّر تصدير الـ PDF. تأكد من تثبيت jspdf و html2canvas.");
+      alert("تعذّر تصدير الـ PDF");
     }
   };
 
-  // ================= 12) كروت العدادات (من formsAll) =================
+  // ================= 12) كروت العدادات =================
   const counts = useMemo(() => {
     const c = { total: formsAll.length, pending: 0, released: 0, rejected: 0 };
     for (const f of formsAll) {
-      if (f.status === "released") c.released++;
-      else if (f.status === "rejected") c.rejected++;
+      if (f.accountantRelease?.status === "released") c.released++;
+      else if (f.accountantRelease?.status === "rejected") c.rejected++;
       else c.pending++;
     }
     return c;
   }, [formsAll]);
 
-  // ================= 13) إجماليات الجدول المعروض =================
   const totals = useMemo(() => {
     return forms.reduce(
       (acc, f) => {
@@ -286,15 +251,14 @@ export default function AccountantDashboard() {
     );
   }, [forms]);
 
-  // ================= 14) رسوم (حسب البيانات المعروضة في الجدول) =================
   const statusPie = {
     labels: ["Pending", "Released", "Rejected"],
     datasets: [
       {
         data: [
-          forms.filter((f) => f.status !== "released" && f.status !== "rejected").length,
-          forms.filter((f) => f.status === "released").length,
-          forms.filter((f) => f.status === "rejected").length,
+          forms.filter((f) => f.accountantRelease?.status !== "released" && f.accountantRelease?.status !== "rejected").length,
+          forms.filter((f) => f.accountantRelease?.status === "released").length,
+          forms.filter((f) => f.accountantRelease?.status === "rejected").length,
         ],
         backgroundColor: ["#f59e0b", "#10b981", "#ef4444"],
         borderWidth: 0,
@@ -350,7 +314,6 @@ export default function AccountantDashboard() {
               <h1 className="text-lg font-bold tracking-tight">مراجعة تقارير الفروع</h1>
             </div>
           </div>
-
           <div className="flex items-center gap-4">
             <span className="hidden md:inline text-sm text-gray-600">مرحباً، <b>{meName}</b></span>
             <button onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow">
@@ -362,7 +325,7 @@ export default function AccountantDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* كروت سريعة (من formsAll = كل الحالات) */}
+        {/* كروت سريعة */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <StatCard icon={<FileText className="opacity-80" />} title="إجمالي المعروض" value={counts.total} tint="from-sky-500 to-indigo-500" />
           <StatCard icon={<Clock3 className="opacity-80" />} title="Pending" value={counts.pending} tint="from-amber-500 to-orange-500" />
@@ -417,7 +380,7 @@ export default function AccountantDashboard() {
           {errorMsg && <div className="mt-3 text-red-600">{errorMsg}</div>}
         </section>
 
-        {/* إجماليات النتائج المعروضة (حسب الجدول فقط) */}
+        {/* إجماليات النتائج المعروضة */}
         <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
           <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
@@ -428,7 +391,7 @@ export default function AccountantDashboard() {
           </div>
         </section>
 
-        {/* شبكة الرسوم (حسب الجدول) */}
+        {/* شبكة الرسوم */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
             <h3 className="font-semibold mb-3">حالة التقارير</h3>
@@ -470,23 +433,24 @@ export default function AccountantDashboard() {
                       <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
                       <td className="p-2 border">{f.branch?.name || "-"}</td>
                       <td className="p-2 border">{f.user?.name || "-"}</td>
-
                       <td className="p-2 border">{currency(f.cashCollection)}</td>
                       <td className="p-2 border">{currency(appsWithFallback(f))}</td>
                       <td className="p-2 border">{currency(bankWithFallback(f))}</td>
-
                       <td className="p-2 border">{currency(rowTotal(f))}</td>
-
                       <td className="p-2 border">
-                        {f.status === "released" ? "Released" : f.status === "rejected" ? "Rejected" : "Pending"}
+                        {f.accountantRelease?.status === "released"
+                          ? "Released"
+                          : f.accountantRelease?.status === "rejected"
+                          ? "Rejected"
+                          : "Pending"}
                       </td>
                       <td className="p-2 border space-y-1">
                         <button onClick={() => openDetails(f)} className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">تفاصيل</button>
-                        {f.status !== "released" && (
-                          <button onClick={() => onRelease(f)} className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">Release</button>
-                        )}
-                        {f.status !== "rejected" && (
-                          <button onClick={() => onReject(f)} className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700">Reject</button>
+                        {f.accountantRelease?.status === "pending" && (
+                          <>
+                            <button onClick={() => onRelease(f)} className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">Release</button>
+                            <button onClick={() => onReject(f)} className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700">Reject</button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -504,20 +468,15 @@ export default function AccountantDashboard() {
       {selectedForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
           <div className="relative bg-white rounded-2xl w-full max-w-3xl shadow-2xl">
-            {/* محتوى قابل للسكرول */}
             <div className="max-h-[80vh] overflow-y-auto" ref={modalRef}>
-              {/* هيدر ستكي جوّا المودال */}
               <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b rounded-t-2xl">
                 <div className="flex items-center justify-between px-4 py-3">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold">
                       تفاصيل تقرير {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
                     </h3>
-                    {/* يظهر في PDF كعلامة */}
                     <div className="text-xs text-gray-500">باسم مؤسسة الحواس</div>
                   </div>
-
-                  {/* أزرار مخفية عن لقطة PDF */}
                   <div className="flex items-center gap-2" data-html2canvas-ignore>
                     <button
                       onClick={handleExportPDF}
@@ -535,7 +494,6 @@ export default function AccountantDashboard() {
                 </div>
               </div>
 
-              {/* جسم المودال */}
               <div className="p-4 sm:p-6">
                 <div className="grid md:grid-cols-3 gap-3 mb-4">
                   <MiniBox label="العهدة" value={currency(selectedForm.pettyCash)} />
@@ -596,50 +554,14 @@ export default function AccountantDashboard() {
                   </div>
                 </div>
 
-                <div className="border rounded-xl p-3 bg-white/70">
-                  <div className="font-semibold mb-2">المرفقات</div>
-                  {attLoading ? (
-                    <div>جاري التحميل…</div>
-                  ) : attachments?.length ? (
-                    <ul className="space-y-1">
-                      {attachments.map((att) => {
-                        const cleanPath = String(att.fileUrl || "").replace(/\\\\/g, "/");
-                        const fileName = cleanPath.split("/").pop();
-                        const href = `${API_BASE}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
-                        return (
-                          <li key={att._id} className="flex justify-between">
-                            <span>{fileName}</span>
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">فتح</a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-gray-500">لا يوجد مرفقات</div>
-                  )}
-                </div>
-
-                {/* أزرار الإجراءات — مستبعدة من PDF */}
-                <div className="mt-4 flex gap-2 justify-end" data-html2canvas-ignore>
-                  {selectedForm.status !== "released" && (
+                {selectedForm.accountantRelease?.status === "pending" && (
+                  <div className="mt-4 flex gap-2 justify-end" data-html2canvas-ignore>
                     <button onClick={() => onRelease(selectedForm)} className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">Release</button>
-                  )}
-                  {selectedForm.status !== "rejected" && (
                     <button onClick={() => onReject(selectedForm)} className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700">Reject</button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* زر إغلاق عائم صغير للموبايل (لو الهيدر بعيد) — مستبعد من PDF */}
-            <button
-              onClick={() => setSelectedForm(null)}
-              className="absolute top-2 right-2 sm:hidden bg-white border shadow px-2 py-1 rounded-lg text-xs"
-              aria-label="Close"
-              data-html2canvas-ignore
-            >
-              إغلاق
-            </button>
           </div>
         </div>
       )}
@@ -647,7 +569,7 @@ export default function AccountantDashboard() {
   );
 }
 
-// ========= مكوّنات صغيرة =========
+// ========= مكونات صغيرة =========
 function StatCard({ icon, title, value, tint }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 backdrop-blur p-4 shadow-sm">

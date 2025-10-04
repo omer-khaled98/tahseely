@@ -685,13 +685,13 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
 
         {/* زر التصوير بالكاميرا */}
         <label className="flex-1">
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+        />
+
           <span className="block w-full text-center px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer text-sm">
             📷 تصوير
           </span>

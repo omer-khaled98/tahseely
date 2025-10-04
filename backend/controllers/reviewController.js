@@ -1,30 +1,48 @@
 const Form = require("../models/Form");
 
+// ================== 1) جلب النماذج للمراجعة ==================
 const listFormsForReview = async (req, res) => {
   try {
-    const { branch, status, dateFrom, dateTo } = req.query;
-    const q = {};
+    const { branch, status, dateFrom, dateTo, q } = req.query;
+    const query = {};
 
-    if (branch) q.branch = branch;
+    // فلتر الفرع
+    if (branch) query.branch = branch;
+
+    // فلتر التاريخ
     if (dateFrom || dateTo) {
-      q.formDate = {};
-      if (dateFrom) q.formDate.$gte = new Date(dateFrom);
-      if (dateTo) q.formDate.$lte = new Date(dateTo);
+      query.formDate = {};
+      if (dateFrom) query.formDate.$gte = new Date(dateFrom);
+      if (dateTo) query.formDate.$lte = new Date(dateTo);
     }
 
-    // لو محاسب: (اختياري) قَصِر على فروعه
+    // لو محاسب: قصر على فروعه
     if (req.user.role === "Accountant") {
-      const assigned = (req.user.assignedBranches || []).map(b => String(b));
-      q.branch = branch ? branch : { $in: assigned };
+      const assigned = (req.user.assignedBranches || []).map((b) => String(b));
+      query.branch = branch ? branch : { $in: assigned };
     }
 
-    // فلتر حالة السير المناسب للدور
+    // فلتر الحالة
     if (status) {
-      if (req.user.role === "Accountant") q["accountantRelease.status"] = status;
-      if (req.user.role === "Admin") q["adminRelease.status"] = status;
+      if (req.user.role === "Accountant") query["accountantRelease.status"] = status;
+      if (req.user.role === "Admin") query["adminRelease.status"] = status;
     }
 
-    const forms = await Form.find(q)
+    // 🔍 فلتر البحث (MongoDB regex بدلاً من الفلترة في الذاكرة)
+    let searchQuery = {};
+    if (q) {
+      const regex = new RegExp(q, "i"); // i = ignore case
+      searchQuery = {
+        $or: [
+          { notes: regex },
+          { "user.name": regex },
+          { "branch.name": regex },
+        ],
+      };
+    }
+
+    // جلب البيانات
+    const forms = await Form.find({ ...query, ...searchQuery })
       .sort({ formDate: -1 })
       .populate("user", "name")
       .populate("branch", "name")
@@ -37,6 +55,7 @@ const listFormsForReview = async (req, res) => {
   }
 };
 
+// ================== 2) إجراء المحاسب (Release / Reject) ==================
 const accountantReleaseAction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -49,7 +68,7 @@ const accountantReleaseAction = async (req, res) => {
       by: req.user._id,
       at: new Date(),
     };
-    // (اختياري) أضف الملاحظة لسطر notes العام
+
     if (notes) form.notes = `${form.notes ? form.notes + " | " : ""}[ACC] ${notes}`;
     form.status = action === "release" ? "released" : "rejected";
 
@@ -67,6 +86,7 @@ const accountantReleaseAction = async (req, res) => {
   }
 };
 
+// ================== 3) إجراء الأدمن (Release / Reject) ==================
 const adminReleaseAction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -83,6 +103,7 @@ const adminReleaseAction = async (req, res) => {
       by: req.user._id,
       at: new Date(),
     };
+
     if (notes) form.notes = `${form.notes ? form.notes + " | " : ""}[ADMIN] ${notes}`;
     form.status = action === "release" ? "released" : "rejected";
 

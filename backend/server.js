@@ -54,6 +54,14 @@ app.get("/", (req, res) => {
 
 // 🟡 Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () =>
-  console.log(`✅ Server running on http://192.168.1.70:${PORT}`)
-);
+const HOST = "0.0.0.0";
+
+app.listen(PORT, HOST, () => {
+  const os = require("os");
+  const interfaces = os.networkInterfaces();
+  const wifi = Object.values(interfaces)
+    .flat()
+    .find((i) => i.family === "IPv4" && !i.internal);
+  const ip = wifi ? wifi.address : "localhost";
+  console.log(`✅ Server running on http://${ip}:${PORT}`);
+});
