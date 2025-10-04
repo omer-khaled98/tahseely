@@ -1,4 +1,3 @@
-// routes/formRoutes.js
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
@@ -16,7 +15,6 @@ const {
   listFormsForBranchManager,
   branchManagerReleaseForm,
   branchManagerRejectForm,
-  // ✅ أضف السطرين دول
   listAllForms,
   deleteFormPermanently,
 } = require("../controllers/formController");
@@ -44,8 +42,6 @@ router.patch("/:id/reject", protect, authorizeRoles("Accountant"), rejectForm);
 router.get("/admin", protect, authorizeRoles("Admin"), listFormsForAdmin);
 router.patch("/:id/admin-release", protect, authorizeRoles("Admin"), adminReleaseForm);
 router.patch("/:id/admin-reject", protect, authorizeRoles("Admin"), adminRejectForm);
-
-// ✅ route جديد للفواتير كلها + الحذف النهائي
 router.get("/all", protect, authorizeRoles("Admin"), listAllForms);
 router.delete("/:id/delete", protect, authorizeRoles("Admin"), deleteFormPermanently);
 
@@ -56,5 +52,29 @@ router.delete("/:id/delete", protect, authorizeRoles("Admin"), deleteFormPermane
 router.get("/branch-manager", protect, authorizeRoles("BranchManager"), listFormsForBranchManager);
 router.patch("/:id/branch-release", protect, authorizeRoles("BranchManager"), branchManagerReleaseForm);
 router.patch("/:id/branch-reject", protect, authorizeRoles("BranchManager"), branchManagerRejectForm);
+
+
+//
+// 🟠 عرض فاتورة معينة بالتفصيل (للمعاينة)
+router.get("/:id", protect, authorizeRoles("Admin"), async (req, res) => {
+  try {
+    const Form = require("../models/Form");
+    const form = await Form.findById(req.params.id)
+      .populate("user", "name")
+      .populate("branch", "name")
+      .populate("accountantRelease.by", "name")
+      .populate("branchManagerRelease.by", "name")
+      .populate("adminRelease.by", "name");
+
+    if (!form) {
+      return res.status(404).json({ message: "Form not found" });
+    }
+
+    res.json(form);
+  } catch (err) {
+    console.error("Error fetching form by ID:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
 
 module.exports = router;

@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Receipt, Users as UsersIcon, Building2, Layers3, LogOut,
   Filter, Search, CheckCircle2, XCircle, Clock3, FileText, Pencil, Trash2, Plus, Download
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // ===== Chart.js setup =====
 import {
@@ -107,7 +108,7 @@ const api = useApi();
           {/* Tabs */}
           <nav className="hidden md:flex items-center gap-1">
             <NavBtn icon={<LayoutDashboard size={16} />} label="لوحة التحكم" active={tab==="dashboard"} onClick={()=>setTab("dashboard")} />
-            <NavBtn icon={<Receipt size={16} />} label="تقارير المحاسب" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
+            <NavBtn icon={<Receipt size={16} />} label="تقارير مدراء الفروع" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
             <NavBtn icon={<UsersIcon size={16} />} label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
             <NavBtn icon={<Building2 size={16} />} label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
             <NavBtn icon={<Layers3 size={16} />} label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
@@ -126,7 +127,7 @@ const api = useApi();
         {/* Mobile Tabs */}
         <div className="md:hidden px-2 pb-2 flex gap-2 overflow-auto">
           <SmallNavBtn label="لوحة التحكم" active={tab==="dashboard"} onClick={()=>setTab("dashboard")} />
-          <SmallNavBtn label="تحصيلات المحاسب" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
+          <SmallNavBtn label="تقارير مدراء الفروع" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
           <SmallNavBtn label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
           <SmallNavBtn label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
           <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
@@ -684,7 +685,7 @@ function UsersPage({ api, isAdmin }) {
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text:white hover:opacity-90"
                       >
                         <Trash2 size={14} />
-                        مسح
+                        حذف
                       </button>
                     </td>
                   )}
@@ -870,11 +871,11 @@ function BranchesPage({ api, isAdmin }) {
   };
   const del = async (id)=> {
     if(!isAdmin) return toast.error("صلاحية أدمن فقط");
-    if(!window.confirm("تأكيد مسح الفرع؟")) return;
+    if(!window.confirm("تأكيد حذف الفرع؟")) return;
     console.log("[Branches] delete", id);
     await api.delete(`/api/branches/${id}`); 
     await load(); 
-    toast.success("تم المسح");
+    toast.success("تم الحذف");
   };
 
   return (
@@ -895,7 +896,7 @@ function BranchesPage({ api, isAdmin }) {
               {isAdmin && (
                 <div className="flex items-center gap-2">
                   <button onClick={()=> { setEditing(b); setEditName(b.name||""); }} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-yellow-500 text-white hover:opacity-90"><Pencil size={14}/>تعديل</button>
-                  <button onClick={()=> del(b._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>مسح</button>
+                  <button onClick={()=> del(b._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>حذف</button>
                 </div>
               )}
             </li>
@@ -962,10 +963,10 @@ function TemplatesPage({ api, isAdmin }) {
   };
   const del = async (id)=>{
     if(!isAdmin) return toast.error("صلاحية أدمن فقط");
-    if(!window.confirm("تأكيد مسح الطريقة؟")) return;
+    if(!window.confirm("تأكيد حذف الطريقة؟")) return;
     console.log("[Templates] delete", id);
     await api.delete(`/api/report-templates/${id}`);
-    await load(); toast.success("تم المسح");
+    await load(); toast.success("تم الحذف");
   };
 
   return (
@@ -1020,7 +1021,7 @@ function TemplateList({ title, items, onToggle, onEdit, onDelete, isAdmin }){
                 <>
                   <button onClick={()=> onToggle(it._id, it.isActive)} className="text-xs px-3 py-1 rounded-xl bg-slate-700 text-white hover:opacity-90">{it.isActive ? "تعطيل" : "تفعيل"}</button>
                   <button onClick={()=> onEdit(it)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-yellow-500 text-white hover:opacity-90"><Pencil size={14}/>تعديل</button>
-                  <button onClick={()=> onDelete(it._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>مسح</button>
+                  <button onClick={()=> onDelete(it._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>حذف</button>
                 </>
               )}
             </div>
@@ -1184,12 +1185,14 @@ const sums = useMemo(()=> rows.reduce((a,f)=>{
   );
 }
 /* ---------------- FIXED & ENHANCED + STATUS FILTER: AllFormsPage ---------------- */
+
 function AllFormsPage({ api, isAdmin }) {
   const [rows, setRows] = useState([]);
   const [filters, setFilters] = useState({ q: "", branchId: "", userId: "", status: "" });
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -1206,50 +1209,41 @@ function AllFormsPage({ api, isAdmin }) {
     })();
   }, [api]);
 
-const fetchAll = async () => {
-  setLoading(true);
-  try {
-    // نبدأ من نسخة الفلاتر الأصلية
-    const params = { ...filters };
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const params = { ...filters };
 
-    // 🧠 ترجمة فلتر الحالة حسب المنطق الفعلي للفورمات
-    if (filters.status === "pending") {
-      // في انتظار المحاسب
-      params["accountantRelease.status"] = "pending";
-    } 
-    else if (filters.status === "waitingBranch") {
-      // في انتظار مدير الفرع بعد موافقة المحاسب
-      params["accountantRelease.status"] = "released";
-      params["branchManagerRelease.status"] = "pending";
-    } 
-    else if (filters.status === "released") {
-      // تم الاعتماد النهائي من الأدمن (release نهائي)
-      params["adminRelease.status"] = "released";
-      params.status = "released"; // لتأكيد التطابق مع الفورمز النهائية
-    } 
-    else if (filters.status === "rejected") {
-      // مرفوضة من أي مستوى (محاسب / مدير فرع / أدمن)
-      params.$or = [
-        { "accountantRelease.status": "rejected" },
-        { "branchManagerRelease.status": "rejected" },
-        { "adminRelease.status": "rejected" },
-        { status: "rejected" },
-      ];
+      if (filters.status === "pending") {
+        params["accountantRelease.status"] = "pending";
+      } else if (filters.status === "waitingBranch") {
+        params["accountantRelease.status"] = "released";
+        params["branchManagerRelease.status"] = "pending";
+      } else if (filters.status === "released") {
+        params["adminRelease.status"] = "released";
+        params.status = "released";
+      } else if (filters.status === "rejected") {
+        params.$or = [
+          { "accountantRelease.status": "rejected" },
+          { "branchManagerRelease.status": "rejected" },
+          { "adminRelease.status": "rejected" },
+          { status: "rejected" },
+        ];
+      }
+
+      const res = await api.get("/api/forms/all", { params });
+      setRows(res.data || []);
+      console.log("[AllForms] count =", res.data?.length, "| filters =", params);
+    } catch (e) {
+      console.error("[AllForms] error", e?.response?.data || e?.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const res = await api.get("/api/forms/all", { params });
-    setRows(res.data || []);
-    console.log("[AllForms] count =", res.data?.length, "| filters =", params);
-  } catch (e) {
-    console.error("[AllForms] error", e?.response?.data || e?.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-useEffect(() => {
-  fetchAll();
-}, [filters]);
+  useEffect(() => {
+    fetchAll();
+  }, [filters]);
 
   const deleteForm = async (id) => {
     if (!window.confirm("هل أنت متأكد من حذف هذا التقرير نهائيًا؟")) return;
@@ -1263,7 +1257,6 @@ useEffect(() => {
     }
   };
 
-  // 🧩 تحديد الحالة النصية للفاتورة
   const getStatusText = (f) => {
     if (f.accountantRelease?.status !== "released")
       return (
@@ -1296,89 +1289,16 @@ useEffect(() => {
     );
   };
 
+  const formatDateOnly = (d) => (d ? new Date(d).toLocaleDateString() : "-");
+
   return (
     <div className="space-y-6">
-{/* 🔍 الفلاتر */}
-<section className="bg-white/80 rounded-2xl border p-4 shadow-sm">
-  <div className="flex items-center gap-2 mb-3 text-gray-600">
-    <i className="fas fa-filter text-gray-500"></i>
-    <b>فلاتر جميع الفواتير</b>
-  </div>
-
-  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-    {/* 🔎 البحث */}
-    <input
-      value={filters.q}
-      onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))}
-      placeholder="بحث بالملاحظات"
-      className="border rounded-xl px-3 py-2 bg-white text-sm"
-    />
-
-    {/* 🏢 الفرع */}
-    <select
-      value={filters.branchId}
-      onChange={(e) =>
-        setFilters((p) => ({ ...p, branchId: e.target.value }))
-      }
-      className="border rounded-xl px-3 py-2 bg-white text-sm"
-    >
-      <option value="">كل الفروع</option>
-      {branches.map((b) => (
-        <option key={b._id} value={b._id}>
-          {b.name}
-        </option>
-      ))}
-    </select>
-
-    {/* 👤 المستخدم */}
-    <select
-      value={filters.userId}
-      onChange={(e) =>
-        setFilters((p) => ({ ...p, userId: e.target.value }))
-      }
-      className="border rounded-xl px-3 py-2 bg-white text-sm"
-    >
-      <option value="">كل المستخدمين</option>
-      {users.map((u) => (
-        <option key={u._id} value={u._id}>
-          {u.name}
-        </option>
-      ))}
-    </select>
-
-    {/* 📊 الحالة */}
-    <select
-      value={filters.status}
-      onChange={(e) =>
-        setFilters((p) => ({ ...p, status: e.target.value }))
-      }
-      className="border rounded-xl px-3 py-2 bg-white text-sm"
-    >
-      <option value="">كل الحالات</option>
-      <option value="pending">⏳ في انتظار المحاسب</option>
-      <option value="waitingBranch">🧍‍♂️ في انتظار مدير الفرع</option>
-      <option value="released">✅ تم الاعتماد النهائي</option>
-      <option value="rejected">❌ مرفوضة</option>
-    </select>
-
-    {/* 🔄 تحديث */}
-    <button
-      onClick={fetchAll}
-      className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-    >
-      <i className="fas fa-sync-alt"></i>
-      <span>تحديث</span>
-    </button>
-  </div>
-</section>
-
-
-      {/* 🧾 جدول الفواتير */}
       <section className="bg-white/80 rounded-2xl border p-4 shadow-sm">
         <h3 className="font-semibold mb-3">
           <i className="fas fa-file-invoice-dollar mr-2 text-gray-700"></i>
           كل الفواتير في النظام
         </h3>
+
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-100">
@@ -1387,15 +1307,20 @@ useEffect(() => {
                 <th className="p-2 border">الفرع</th>
                 <th className="p-2 border">المستخدم</th>
                 <th className="p-2 border">الحالة الحالية</th>
-                <th className="p-2 border">إجراء</th>
+                {isAdmin && (
+                  <>
+                    <th className="p-2 border">معاينة</th>
+                    <th className="p-2 border">حذف نهائي</th>
+                  </>
+                )}
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">
-                    <i className="fas fa-spinner fa-spin text-gray-500"></i>{" "}
-                    جاري التحميل...
+                  <td colSpan={isAdmin ? 6 : 4} className="text-center p-4">
+                    <i className="fas fa-spinner fa-spin text-gray-500"></i> جاري التحميل...
                   </td>
                 </tr>
               ) : rows.length ? (
@@ -1405,20 +1330,34 @@ useEffect(() => {
                     <td className="p-2 border">{f.branch?.name || "-"}</td>
                     <td className="p-2 border">{f.user?.name || "-"}</td>
                     <td className="p-2 border">{getStatusText(f)}</td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() => deleteForm(f._id)}
-                        className="bg-rose-600 text-white px-3 py-1 rounded-xl hover:bg-rose-700"
-                      >
-                        <i className="fas fa-trash-alt mr-1"></i>مسح نهائي
-                      </button>
-                    </td>
+
+                    {isAdmin && (
+                      <>
+                        <td className="p-2 border">
+                          <button
+                            onClick={() => window.open(`/form/${f._id}`, "_blank")}
+                            className="bg-blue-600 text-white px-3 py-1 rounded-xl hover:bg-blue-700 w-full sm:w-auto"
+                          >
+                            <i className="fas fa-eye mr-1"></i>معاينة
+                          </button>
+                        </td>
+
+                        <td className="p-2 border">
+                          <button
+                            onClick={() => deleteForm(f._id)}
+                            className="bg-rose-600 text-white px-3 py-1 rounded-xl hover:bg-rose-700 w-full sm:w-auto"
+                          >
+                            <i className="fas fa-trash-alt mr-1"></i>حذف
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={isAdmin ? 6 : 4}
                     className="text-center p-4 text-gray-500 italic"
                   >
                     <i className="fas fa-inbox mr-2"></i>لا توجد فواتير حاليًا

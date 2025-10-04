@@ -4,7 +4,8 @@ import Login from "./pages/Login";
 import UserDashboard from "./pages/UserDashboard";
 import AccountantDashboard from "./pages/AccountantDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
-import BranchManagerDashboard from "./pages/BranchManagerDashboard"; // ✅ جديد
+import BranchManagerDashboard from "./pages/BranchManagerDashboard";
+import FormViewPage from "./pages/FormViewPage"; // ✅ صفحة المعاينة الجديدة
 import ProtectedRoute from "./ProtectedRoute";
 
 // ✅ متغير عام يحدد الـ API URL حسب المكان اللي الكود شغال فيه
@@ -17,23 +18,23 @@ function App() {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
 
-  // ✅ تحديث getRedirect مع BranchManager
+  // ✅ دالة لتوجيه المستخدم حسب دوره
   const getRedirect = () => {
     if (!token) return <Navigate to="/login" replace />;
     if (role === "User") return <Navigate to="/user" replace />;
     if (role === "Accountant") return <Navigate to="/accountant" replace />;
     if (role === "Admin") return <Navigate to="/admin" replace />;
-    if (role === "BranchManager") return <Navigate to="/branch-manager" replace />; // جديد
+    if (role === "BranchManager") return <Navigate to="/branch-manager" replace />;
     return <Navigate to="/login" replace />;
   };
 
   return (
     <Router>
       <Routes>
-        {/* صفحة اللوجين */}
+        {/* 🟢 صفحة تسجيل الدخول */}
         <Route path="/login" element={<Login />} />
 
-        {/* صفحات محمية */}
+        {/* 🟢 لوحة المستخدم */}
         <Route
           path="/user"
           element={
@@ -43,6 +44,7 @@ function App() {
           }
         />
 
+        {/* 🟢 لوحة المحاسب */}
         <Route
           path="/accountant"
           element={
@@ -52,6 +54,7 @@ function App() {
           }
         />
 
+        {/* 🟢 لوحة الأدمن */}
         <Route
           path="/admin"
           element={
@@ -61,7 +64,7 @@ function App() {
           }
         />
 
-        {/* ✅ صفحة مدير الفرع */}
+        {/* 🟢 لوحة مدير الفرع */}
         <Route
           path="/branch-manager"
           element={
@@ -71,10 +74,20 @@ function App() {
           }
         />
 
-        {/* الراوت الأساسي "/" → يوديك حسب الدور */}
+        {/* 🟣 صفحة معاينة الفاتورة (خاصة بالأدمن فقط) */}
+        <Route
+          path="/form/:id"
+          element={
+            <ProtectedRoute allowedRole="Admin">
+              <FormViewPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🟡 التوجيه حسب الدور عند الدخول */}
         <Route path="/" element={getRedirect()} />
 
-        {/* أي مسار غلط → Login */}
+        {/* 🔴 أي مسار غير معروف → تحويل إلى Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
