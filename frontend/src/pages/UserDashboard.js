@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import imageCompression from "browser-image-compression";
 
 // ===== Chart.js (stable) =====
 import {
@@ -652,25 +653,55 @@ function StatCard({ icon, title, value, tint }) {
   );
 }
 
+
 function UploadBox({ label, value, onChange, fileKey, setFiles }) {
-  const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setFiles((p) => ({ ...p, [fileKey]: e.target.files[0] }));
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+
+      // 🧩 ضغط الصورة لو حجمها أكبر من 1 ميجابايت
+      let finalFile = file;
+      if (file.size > 1 * 1024 * 1024 && file.type.startsWith("image/")) {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1600,
+          useWebWorker: true,
+        };
+        finalFile = await imageCompression(file, options);
+      }
+
+      // 🧠 حفظ الصورة في الذاكرة ومعاينتها
+      setFiles((p) => ({ ...p, [fileKey]: finalFile }));
+      const url = URL.createObjectURL(finalFile);
+      setPreview(url);
+    } catch (err) {
+      console.error("❌ Error compressing file:", err);
+      alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium mb-1">{label}</label>
+    <div className="p-3 bg-white/70 border border-gray-200 rounded-2xl shadow-sm transition-all">
+      <label className="block text-sm font-semibold mb-2">{label}</label>
+
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border p-2 rounded-xl w-full mb-2"
+        className="border p-2 rounded-xl w-full mb-3 text-right focus:ring-2 focus:ring-emerald-400 focus:outline-none"
+        placeholder="أدخل المبلغ"
       />
 
-      <div className="flex gap-2">
-        {/* زر رفع ملف */}
+      <div className="flex gap-2 flex-wrap">
+        {/* زر رفع ملف من الذاكرة */}
         <label className="flex-1">
           <input
             type="file"
@@ -678,25 +709,46 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
             className="hidden"
             onChange={handleFileChange}
           />
-          <span className="block w-full text-center px-3 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 cursor-pointer text-sm">
-            📎 رفع ملف
+          <span className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 cursor-pointer text-sm font-medium shadow-sm active:scale-95 transition">
+            📎 <span>رفع ملف</span>
           </span>
         </label>
 
-        {/* زر التصوير بالكاميرا */}
+        {/* زر تصوير بالكاميرا */}
         <label className="flex-1">
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileChange}
-        />
-
-          <span className="block w-full text-center px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer text-sm">
-            📷 تصوير
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <span className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white cursor-pointer text-sm font-medium shadow-sm active:scale-95 transition">
+            {loading ? "⏳ جاري..." : "📷 تصوير بالكاميرا"}
           </span>
         </label>
       </div>
+
+      {/* معاينة الصورة بعد التصوير */}
+      {preview && (
+        <div className="mt-3 relative">
+          <img
+            src={preview}
+            alt="preview"
+            className="w-full rounded-xl border object-cover max-h-40"
+          />
+          <button
+            onClick={() => {
+              setPreview(null);
+              setFiles((p) => ({ ...p, [fileKey]: null }));
+            }}
+            type="button"
+            className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
