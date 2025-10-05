@@ -553,6 +553,44 @@ export default function AccountantDashboard() {
                     <div className="whitespace-pre-wrap">{selectedForm.notes || "-"}</div>
                   </div>
                 </div>
+                    {/* 🧩 المرفقات */}
+<div className="mt-4 border rounded-xl p-3 bg-white/70">
+  <div className="font-semibold mb-2">📎 المرفقات</div>
+
+  {attLoading ? (
+    <div className="text-sm text-gray-500">جاري التحميل...</div>
+  ) : attachments.length > 0 ? (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {attachments.map((a) => (
+        <a
+          key={a._id}
+          href={a.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block border rounded-xl overflow-hidden hover:shadow-md transition"
+        >
+          {a.fileUrl.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i) ? (
+            <img
+              src={a.fileUrl}
+              alt={a.type || "attachment"}
+              className="w-full h-32 object-cover"
+            />
+          ) : (
+            <div className="p-3 text-center text-sm text-gray-600">
+              {a.fileUrl.split("/").pop()}
+            </div>
+          )}
+          <div className="text-xs text-gray-500 text-center p-1 bg-gray-50 border-t">
+            {a.type?.toUpperCase() || "ملف"}
+          </div>
+        </a>
+      ))}
+    </div>
+  ) : (
+    <div className="text-sm text-gray-500">لا توجد مرفقات</div>
+  )}
+</div>
+
 
                 {selectedForm.accountantRelease?.status === "pending" && (
                   <div className="mt-4 flex gap-2 justify-end" data-html2canvas-ignore>
