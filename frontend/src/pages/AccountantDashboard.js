@@ -1,10 +1,17 @@
 // src/pages/AccountantDashboard.jsx
 import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
-import { LogOut, Filter, Search, CheckCircle2, XCircle, Clock3, FileText } from "lucide-react";
+import {
+  LogOut,
+  Filter,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  FileText,
+} from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
-
 
 // ===== Chart.js setup =====
 import {
@@ -20,7 +27,17 @@ import {
   Filler,
 } from "chart.js";
 import { Pie, Bar, Line } from "react-chartjs-2";
-Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, ChartTooltip, ChartLegend, LineElement, PointElement, Filler);
+Chart.register(
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ChartTooltip,
+  ChartLegend,
+  LineElement,
+  PointElement,
+  Filler
+);
 
 // ===== PDF tools =====
 
@@ -39,8 +56,8 @@ export default function AccountantDashboard() {
 
   // ================= 2) حالات عامة =================
   const [branches, setBranches] = useState([]);
-  const [forms, setForms] = useState([]);        // البيانات المعروضة في الجدول
-  const [formsAll, setFormsAll] = useState([]);  // بيانات الكروت (كل الحالات)
+  const [forms, setForms] = useState([]); // البيانات المعروضة في الجدول
+  const [formsAll, setFormsAll] = useState([]); // بيانات الكروت (كل الحالات)
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -60,11 +77,14 @@ export default function AccountantDashboard() {
   const modalRef = useRef(null);
 
   // ================= 5) دوال مساعدة =================
-  const formatDateOnly = (dateStr) => (dateStr ? new Date(dateStr).toLocaleDateString() : "-");
+  const formatDateOnly = (dateStr) =>
+    dateStr ? new Date(dateStr).toLocaleDateString() : "-";
   const currency = (n) => Number(n || 0).toLocaleString();
 
-  const sumApps = (f) => (f?.applications || []).reduce((s, a) => s + Number(a?.amount || 0), 0);
-  const sumBank = (f) => (f?.bankCollections || []).reduce((s, b) => s + Number(b?.amount || 0), 0);
+  const sumApps = (f) =>
+    (f?.applications || []).reduce((s, a) => s + Number(a?.amount || 0), 0);
+  const sumBank = (f) =>
+    (f?.bankCollections || []).reduce((s, b) => s + Number(b?.amount || 0), 0);
 
   const appsWithFallback = (f) => {
     const calc = sumApps(f);
@@ -74,7 +94,8 @@ export default function AccountantDashboard() {
     const calc = sumBank(f);
     return calc > 0 ? calc : Number(f?.bankTotal || 0);
   };
-  const rowTotal = (f) => Number(f?.cashCollection || 0) + appsWithFallback(f) + bankWithFallback(f);
+  const rowTotal = (f) =>
+    Number(f?.cashCollection || 0) + appsWithFallback(f) + bankWithFallback(f);
 
   // ================= Navbar =================
   const meName = localStorage.getItem("userName") || "محاسب";
@@ -115,11 +136,16 @@ export default function AccountantDashboard() {
         api.get("/api/forms/review", { params: { ...baseParams, status: s } })
       );
 
-      const [tableRes, ...cardsRes] = await Promise.all([tableReq, ...cardReqs]);
+      const [tableRes, ...cardsRes] = await Promise.all([
+        tableReq,
+        ...cardReqs,
+      ]);
       setForms(tableRes.data || []);
 
       const mergedForCards = cardsRes.flatMap((r) => r?.data || []);
-      const uniqueForms = Array.from(new Map(mergedForCards.map((f) => [f._id, f])).values());
+      const uniqueForms = Array.from(
+        new Map(mergedForCards.map((f) => [f._id, f])).values()
+      );
       setFormsAll(uniqueForms);
     } catch (e) {
       console.error(e);
@@ -134,7 +160,14 @@ export default function AccountantDashboard() {
   useEffect(() => {
     fetchForms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, filters.branchId, filters.startDate, filters.endDate, filters.status, filters.q]);
+  }, [
+    api,
+    filters.branchId,
+    filters.startDate,
+    filters.endDate,
+    filters.status,
+    filters.q,
+  ]);
 
   // ================= 9) مرفقات =================
   const fetchAttachments = async (formId) => {
@@ -159,10 +192,13 @@ export default function AccountantDashboard() {
   const onRelease = async (f) => {
     if (!window.confirm("تأكيد عمل Release للتقرير؟")) return;
     try {
-      const res = await api.patch(`/api/forms/${f._id}/release`, { action: "release" });
+      const res = await api.patch(`/api/forms/${f._id}/release`, {
+        action: "release",
+      });
       alert("تم عمل Release بنجاح");
       fetchForms();
-      if (selectedForm && selectedForm._id === f._id) setSelectedForm(res.data?.form || res.data);
+      if (selectedForm && selectedForm._id === f._id)
+        setSelectedForm(res.data?.form || res.data);
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || "فشل عمل Release");
@@ -172,10 +208,13 @@ export default function AccountantDashboard() {
   const onReject = async (f) => {
     if (!window.confirm("تأكيد عمل Reject للتقرير؟")) return;
     try {
-      const res = await api.patch(`/api/forms/${f._id}/reject`, { action: "reject" });
+      const res = await api.patch(`/api/forms/${f._id}/reject`, {
+        action: "reject",
+      });
       alert("تم رفض التقرير");
       fetchForms();
-      if (selectedForm && selectedForm._id === f._id) setSelectedForm(res.data?.form || res.data);
+      if (selectedForm && selectedForm._id === f._id)
+        setSelectedForm(res.data?.form || res.data);
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || "فشل الرفض");
@@ -216,7 +255,9 @@ export default function AccountantDashboard() {
         heightLeft -= pageHeight;
       }
 
-      const name = `form-${selectedForm?.branch?.name || "branch"}-${(selectedForm?.formDate || "").slice(0, 10)}.pdf`;
+      const name = `form-${selectedForm?.branch?.name || "branch"}-${(
+        selectedForm?.formDate || ""
+      ).slice(0, 10)}.pdf`;
       pdf.save(name);
     } catch (err) {
       console.error(err);
@@ -256,9 +297,15 @@ export default function AccountantDashboard() {
     datasets: [
       {
         data: [
-          forms.filter((f) => f.accountantRelease?.status !== "released" && f.accountantRelease?.status !== "rejected").length,
-          forms.filter((f) => f.accountantRelease?.status === "released").length,
-          forms.filter((f) => f.accountantRelease?.status === "rejected").length,
+          forms.filter(
+            (f) =>
+              f.accountantRelease?.status !== "released" &&
+              f.accountantRelease?.status !== "rejected"
+          ).length,
+          forms.filter((f) => f.accountantRelease?.status === "released")
+            .length,
+          forms.filter((f) => f.accountantRelease?.status === "rejected")
+            .length,
         ],
         backgroundColor: ["#f59e0b", "#10b981", "#ef4444"],
         borderWidth: 0,
@@ -277,7 +324,14 @@ export default function AccountantDashboard() {
 
   const perBranchBar = {
     labels: perBranch.map((x) => x.name),
-    datasets: [{ label: "تقارير", data: perBranch.map((x) => x.cnt), backgroundColor: "#3b82f6", borderRadius: 8 }],
+    datasets: [
+      {
+        label: "تقارير",
+        data: perBranch.map((x) => x.cnt),
+        backgroundColor: "#3b82f6",
+        borderRadius: 8,
+      },
+    ],
   };
 
   const perDay = useMemo(() => {
@@ -285,7 +339,9 @@ export default function AccountantDashboard() {
     for (const f of forms) {
       const d = new Date(f.formDate);
       if (isNaN(d)) continue;
-      const k = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0, 10);
+      const k = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+        .toISOString()
+        .slice(0, 10);
       map.set(k, (map.get(k) || 0) + 1);
     }
     return Array.from(map.entries())
@@ -296,11 +352,22 @@ export default function AccountantDashboard() {
   const perDayLine = {
     labels: perDay.map((x) => x.date),
     datasets: [
-      { label: "عدد التقارير/يوم", data: perDay.map((x) => x.cnt), fill: true, borderColor: "#8b5cf6", backgroundColor: "rgba(139,92,246,.20)", tension: 0.35 },
+      {
+        label: "عدد التقارير/يوم",
+        data: perDay.map((x) => x.cnt),
+        fill: true,
+        borderColor: "#8b5cf6",
+        backgroundColor: "rgba(139,92,246,.20)",
+        tension: 0.35,
+      },
     ],
   };
 
-  const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } };
+  const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: "bottom" } },
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50">
@@ -311,12 +378,19 @@ export default function AccountantDashboard() {
             <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-400 shadow-lg" />
             <div>
               <p className="text-xs text-gray-500">لوحة المحاسب</p>
-              <h1 className="text-lg font-bold tracking-tight">مراجعة تقارير الفروع</h1>
+              <h1 className="text-lg font-bold tracking-tight">
+                مراجعة تقارير الفروع
+              </h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden md:inline text-sm text-gray-600">مرحباً، <b>{meName}</b></span>
-            <button onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow">
+            <span className="hidden md:inline text-sm text-gray-600">
+              مرحباً، <b>{meName}</b>
+            </span>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow"
+            >
               <LogOut size={16} />
               <span>تسجيل خروج</span>
             </button>
@@ -327,21 +401,46 @@ export default function AccountantDashboard() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* كروت سريعة */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={<FileText className="opacity-80" />} title="إجمالي المعروض" value={counts.total} tint="from-sky-500 to-indigo-500" />
-          <StatCard icon={<Clock3 className="opacity-80" />} title="Pending" value={counts.pending} tint="from-amber-500 to-orange-500" />
-          <StatCard icon={<CheckCircle2 className="opacity-80" />} title="Released" value={counts.released} tint="from-emerald-500 to-teal-500" />
-          <StatCard icon={<XCircle className="opacity-80" />} title="Rejected" value={counts.rejected} tint="from-rose-500 to-pink-500" />
+          <StatCard
+            icon={<FileText className="opacity-80" />}
+            title="إجمالي المعروض"
+            value={counts.total}
+            tint="from-sky-500 to-indigo-500"
+          />
+          <StatCard
+            icon={<Clock3 className="opacity-80" />}
+            title="Pending"
+            value={counts.pending}
+            tint="from-amber-500 to-orange-500"
+          />
+          <StatCard
+            icon={<CheckCircle2 className="opacity-80" />}
+            title="Released"
+            value={counts.released}
+            tint="from-emerald-500 to-teal-500"
+          />
+          <StatCard
+            icon={<XCircle className="opacity-80" />}
+            title="Rejected"
+            value={counts.rejected}
+            tint="from-rose-500 to-pink-500"
+          />
         </section>
 
         {/* فلاتر */}
         <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
-          <div className="flex items-center gap-2 mb-3 text-gray-600"><Filter size={16} /><b>فلاتر البحث</b></div>
+          <div className="flex items-center gap-2 mb-3 text-gray-600">
+            <Filter size={16} />
+            <b>فلاتر البحث</b>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <div className="md:col-span-2 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
               <Search size={16} className="text-gray-400" />
               <input
                 value={filters.q}
-                onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, q: e.target.value }))
+                }
                 className="outline-none w-full text-sm"
                 placeholder="بحث بالكلمات (ملاحظات/مستخدم/فرع)…"
               />
@@ -349,18 +448,24 @@ export default function AccountantDashboard() {
 
             <select
               value={filters.branchId}
-              onChange={(e) => setFilters((p) => ({ ...p, branchId: e.target.value }))}
+              onChange={(e) =>
+                setFilters((p) => ({ ...p, branchId: e.target.value }))
+              }
               className="border rounded-xl px-3 py-2 bg-white text-sm"
             >
               <option value="">كل الفروع</option>
               {branches.map((b) => (
-                <option key={b._id} value={b._id}>{b.name}</option>
+                <option key={b._id} value={b._id}>
+                  {b.name}
+                </option>
               ))}
             </select>
 
             <select
               value={filters.status}
-              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
+              onChange={(e) =>
+                setFilters((p) => ({ ...p, status: e.target.value }))
+              }
               className="border rounded-xl px-3 py-2 bg-white text-sm"
             >
               <option value="">كل الحالات</option>
@@ -369,11 +474,30 @@ export default function AccountantDashboard() {
               <option value="rejected">Rejected</option>
             </select>
 
-            <input type="date" value={filters.startDate} onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
-            <input type="date" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) =>
+                setFilters((p) => ({ ...p, startDate: e.target.value }))
+              }
+              className="border rounded-xl px-3 py-2 bg-white text-sm"
+            />
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) =>
+                setFilters((p) => ({ ...p, endDate: e.target.value }))
+              }
+              className="border rounded-xl px-3 py-2 bg-white text-sm"
+            />
 
             <div className="md:col-span-6 flex justify-end">
-              <button onClick={fetchForms} className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95">تحديث</button>
+              <button
+                onClick={fetchForms}
+                className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95"
+              >
+                تحديث
+              </button>
             </div>
           </div>
 
@@ -382,12 +506,17 @@ export default function AccountantDashboard() {
 
         {/* إجماليات النتائج المعروضة */}
         <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
-          <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
+          <h3 className="text-md font-semibold mb-3">
+            إجماليات النتائج المعروضة
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             <MiniTotal title="نقدي" value={currency(totals.cash)} />
             <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
             <MiniTotal title="البنك" value={currency(totals.bank)} />
-            <MiniTotal title="إجمالي المبيعات" value={currency(totals.totalSales)} />
+            <MiniTotal
+              title="إجمالي المبيعات"
+              value={currency(totals.totalSales)}
+            />
           </div>
         </section>
 
@@ -395,15 +524,33 @@ export default function AccountantDashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
             <h3 className="font-semibold mb-3">حالة التقارير</h3>
-            <div className="h-64"><Pie data={statusPie} options={commonOptions} /></div>
+            <div className="h-64">
+              <Pie data={statusPie} options={commonOptions} />
+            </div>
           </div>
           <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
             <h3 className="font-semibold mb-3">عدد التقارير لكل فرع</h3>
-            <div className="h-64"><Bar data={perBranchBar} options={{ ...commonOptions, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} /></div>
+            <div className="h-64">
+              <Bar
+                data={perBranchBar}
+                options={{
+                  ...commonOptions,
+                  scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                }}
+              />
+            </div>
           </div>
           <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
             <h3 className="font-semibold mb-3">عدد التقارير باليوم</h3>
-            <div className="h-64"><Line data={perDayLine} options={{ ...commonOptions, elements: { line: { tension: 0.35 } } }} /></div>
+            <div className="h-64">
+              <Line
+                data={perDayLine}
+                options={{
+                  ...commonOptions,
+                  elements: { line: { tension: 0.35 } },
+                }}
+              />
+            </div>
           </div>
         </section>
 
@@ -426,16 +573,28 @@ export default function AccountantDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9} className="p-4 text-center">جاري التحميل…</td></tr>
+                  <tr>
+                    <td colSpan={9} className="p-4 text-center">
+                      جاري التحميل…
+                    </td>
+                  </tr>
                 ) : forms.length ? (
                   forms.map((f) => (
                     <tr key={f._id} className="text-center">
-                      <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
+                      <td className="p-2 border">
+                        {formatDateOnly(f.formDate)}
+                      </td>
                       <td className="p-2 border">{f.branch?.name || "-"}</td>
                       <td className="p-2 border">{f.user?.name || "-"}</td>
-                      <td className="p-2 border">{currency(f.cashCollection)}</td>
-                      <td className="p-2 border">{currency(appsWithFallback(f))}</td>
-                      <td className="p-2 border">{currency(bankWithFallback(f))}</td>
+                      <td className="p-2 border">
+                        {currency(f.cashCollection)}
+                      </td>
+                      <td className="p-2 border">
+                        {currency(appsWithFallback(f))}
+                      </td>
+                      <td className="p-2 border">
+                        {currency(bankWithFallback(f))}
+                      </td>
                       <td className="p-2 border">{currency(rowTotal(f))}</td>
                       <td className="p-2 border">
                         {f.accountantRelease?.status === "released"
@@ -445,18 +604,37 @@ export default function AccountantDashboard() {
                           : "Pending"}
                       </td>
                       <td className="p-2 border space-y-1">
-                        <button onClick={() => openDetails(f)} className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">تفاصيل</button>
+                        <button
+                          onClick={() => openDetails(f)}
+                          className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          تفاصيل
+                        </button>
                         {f.accountantRelease?.status === "pending" && (
                           <>
-                            <button onClick={() => onRelease(f)} className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">Release</button>
-                            <button onClick={() => onReject(f)} className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700">Reject</button>
+                            <button
+                              onClick={() => onRelease(f)}
+                              className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                            >
+                              Release
+                            </button>
+                            <button
+                              onClick={() => onReject(f)}
+                              className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700"
+                            >
+                              Reject
+                            </button>
                           </>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={9} className="p-4 text-center text-gray-500">لا توجد تقارير</td></tr>
+                  <tr>
+                    <td colSpan={9} className="p-4 text-center text-gray-500">
+                      لا توجد تقارير
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -473,11 +651,17 @@ export default function AccountantDashboard() {
                 <div className="flex items-center justify-between px-4 py-3">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold">
-                      تفاصيل تقرير {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
+                      تفاصيل تقرير {selectedForm.branch?.name || "-"} —{" "}
+                      {formatDateOnly(selectedForm.formDate)}
                     </h3>
-                    <div className="text-xs text-gray-500">باسم مؤسسة الحواس</div>
+                    <div className="text-xs text-gray-500">
+                      باسم مؤسسة الحواس
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2" data-html2canvas-ignore>
+                  <div
+                    className="flex items-center gap-2"
+                    data-html2canvas-ignore
+                  >
                     <button
                       onClick={handleExportPDF}
                       className="px-3 py-1.5 rounded-xl bg-gray-900 text-white hover:bg-black text-sm"
@@ -496,9 +680,18 @@ export default function AccountantDashboard() {
 
               <div className="p-4 sm:p-6">
                 <div className="grid md:grid-cols-3 gap-3 mb-4">
-                  <MiniBox label="العهدة" value={currency(selectedForm.pettyCash)} />
-                  <MiniBox label="المشتريات" value={currency(selectedForm.purchases)} />
-                  <MiniBox label="التحصيل النقدي" value={currency(selectedForm.cashCollection)} />
+                  <MiniBox
+                    label="العهدة"
+                    value={currency(selectedForm.pettyCash)}
+                  />
+                  <MiniBox
+                    label="المشتريات"
+                    value={currency(selectedForm.purchases)}
+                  />
+                  <MiniBox
+                    label="التحصيل النقدي"
+                    value={currency(selectedForm.cashCollection)}
+                  />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -509,7 +702,9 @@ export default function AccountantDashboard() {
                         {selectedForm.applications.map((a, idx) => (
                           <li key={idx} className="flex justify-between">
                             <span>{a.name}</span>
-                            <span className="font-semibold">{currency(a.amount)}</span>
+                            <span className="font-semibold">
+                              {currency(a.amount)}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -517,7 +712,15 @@ export default function AccountantDashboard() {
                       <div className="text-sm text-gray-500">لا يوجد</div>
                     )}
                     <div className="text-right mt-2 font-bold">
-                      الإجمالي: {currency(sumApps(selectedForm) || Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0))}
+                      الإجمالي:{" "}
+                      {currency(
+                        sumApps(selectedForm) ||
+                          Number(
+                            selectedForm?.appsTotal ||
+                              selectedForm?.appsCollection ||
+                              0
+                          )
+                      )}
                     </div>
                   </div>
 
@@ -528,7 +731,9 @@ export default function AccountantDashboard() {
                         {selectedForm.bankCollections.map((b, idx) => (
                           <li key={idx} className="flex justify-between">
                             <span>{b.name}</span>
-                            <span className="font-semibold">{currency(b.amount)}</span>
+                            <span className="font-semibold">
+                              {currency(b.amount)}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -536,7 +741,11 @@ export default function AccountantDashboard() {
                       <div className="text-sm text-gray-500">لا يوجد</div>
                     )}
                     <div className="text-right mt-2 font-bold">
-                      الإجمالي: {currency(sumBank(selectedForm) || Number(selectedForm?.bankTotal || 0))}
+                      الإجمالي:{" "}
+                      {currency(
+                        sumBank(selectedForm) ||
+                          Number(selectedForm?.bankTotal || 0)
+                      )}
                     </div>
                   </div>
                 </div>
@@ -545,57 +754,80 @@ export default function AccountantDashboard() {
                   <div className="border rounded-xl p-3 bg-white/70">
                     <div className="text-gray-500 mb-1">المبيعات الفعلية</div>
                     <div className="font-bold">
-                      {currency(Number(selectedForm?.cashCollection || 0) + appsWithFallback(selectedForm) + bankWithFallback(selectedForm))}
+                      {currency(
+                        Number(selectedForm?.cashCollection || 0) +
+                          appsWithFallback(selectedForm) +
+                          bankWithFallback(selectedForm)
+                      )}
                     </div>
                   </div>
                   <div className="border rounded-xl p-3 bg-white/70">
                     <div className="text-gray-500 mb-1">الملاحظات</div>
-                    <div className="whitespace-pre-wrap">{selectedForm.notes || "-"}</div>
+                    <div className="whitespace-pre-wrap">
+                      {selectedForm.notes || "-"}
+                    </div>
                   </div>
                 </div>
-                    {/* 🧩 المرفقات */}
-<div className="mt-4 border rounded-xl p-3 bg-white/70">
-  <div className="font-semibold mb-2">📎 المرفقات</div>
+                {/* 🧩 المرفقات */}
+                <div className="mt-4 border rounded-xl p-3 bg-white/70">
+                  <div className="font-semibold mb-2">📎 المرفقات</div>
 
-  {attLoading ? (
-    <div className="text-sm text-gray-500">جاري التحميل...</div>
-  ) : attachments.length > 0 ? (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {attachments.map((a) => (
-        <a
-          key={a._id}
-          href={a.fileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block border rounded-xl overflow-hidden hover:shadow-md transition"
-        >
-          {a.fileUrl.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i) ? (
-            <img
-              src={a.fileUrl}
-              alt={a.type || "attachment"}
-              className="w-full h-32 object-cover"
-            />
-          ) : (
-            <div className="p-3 text-center text-sm text-gray-600">
-              {a.fileUrl.split("/").pop()}
-            </div>
-          )}
-          <div className="text-xs text-gray-500 text-center p-1 bg-gray-50 border-t">
-            {a.type?.toUpperCase() || "ملف"}
-          </div>
-        </a>
-      ))}
-    </div>
-  ) : (
-    <div className="text-sm text-gray-500">لا توجد مرفقات</div>
-  )}
-</div>
-
+                  {attLoading ? (
+                    <div className="text-sm text-gray-500">جاري التحميل...</div>
+                  ) : attachments.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {attachments.map((a) => (
+                        <a
+                          key={a._id}
+                          href={
+                            process.env.REACT_APP_API_URL +
+                            `${a.fileUrl.replace(/\\\\/g, "/")}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block border rounded-xl overflow-hidden hover:shadow-md transition"
+                        >
+                          {a.fileUrl.match(
+                            /\.(jpg|jpeg|png|webp|heic|heif)$/i
+                          ) ? (
+                            <img
+                              src={a.fileUrl}
+                              alt={a.type || "attachment"}
+                              className="w-full h-32 object-cover"
+                            />
+                          ) : (
+                            <div className="p-3 text-center text-sm text-gray-600">
+                              {a.fileUrl.split("/").pop()}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500 text-center p-1 bg-gray-50 border-t">
+                            {a.type?.toUpperCase() || "ملف"}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">لا توجد مرفقات</div>
+                  )}
+                </div>
 
                 {selectedForm.accountantRelease?.status === "pending" && (
-                  <div className="mt-4 flex gap-2 justify-end" data-html2canvas-ignore>
-                    <button onClick={() => onRelease(selectedForm)} className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">Release</button>
-                    <button onClick={() => onReject(selectedForm)} className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700">Reject</button>
+                  <div
+                    className="mt-4 flex gap-2 justify-end"
+                    data-html2canvas-ignore
+                  >
+                    <button
+                      onClick={() => onRelease(selectedForm)}
+                      className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+                    >
+                      Release
+                    </button>
+                    <button
+                      onClick={() => onReject(selectedForm)}
+                      className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700"
+                    >
+                      Reject
+                    </button>
                   </div>
                 )}
               </div>
@@ -611,7 +843,9 @@ export default function AccountantDashboard() {
 function StatCard({ icon, title, value, tint }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 backdrop-blur p-4 shadow-sm">
-      <div className={`absolute -top-10 -left-10 h-28 w-28 rounded-full bg-gradient-to-br ${tint} opacity-20`} />
+      <div
+        className={`absolute -top-10 -left-10 h-28 w-28 rounded-full bg-gradient-to-br ${tint} opacity-20`}
+      />
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500">{title}</p>
