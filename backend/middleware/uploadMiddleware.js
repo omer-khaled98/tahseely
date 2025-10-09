@@ -4,44 +4,72 @@ const sharp = require("sharp");
 const heicConvert = require("heic-convert");
 const fs = require("fs");
 
-// 📂 تخزين الملفات مؤقتًا في فولدر uploads
+// 📂 تحديد مكان التخزين المؤقت
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+    // ✅ لو مفيش اسم أو امتداد، نضيف .jpg بشكل افتراضي
+    let ext = path.extname(file.originalname);
+    if (!ext && file.mimetype) {
+      ext = "." + file.mimetype.split("/")[1];
+    }
+    if (!ext) ext = ".jpg";
+
+    const safeName = (file.originalname || "upload").replace(/\s+/g, "_");
+    cb(null, `${Date.now()}-${safeName}${ext}`);
   },
 });
 
-// 🟢 فلتر الملفات (يقبل كل الصيغ)
+// 🟢 السماح بأي نوع ملف (هنفلتر بعدين)
 const fileFilter = (req, file, cb) => {
-  cb(null, true); // السماح بأي امتداد
+  cb(null, true);
 };
 
-// 🚀 إعدادات Multer (20MB max)
+// 🚀 إعدادات Multer بحد أقصى 20 ميجا
 const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
-// 🟣 ميدل وير بعد الرفع: معالجة الصور فقط
+// 🟣 ميدل وير لمعالجة الصور (ضغط + تحويل ل JPG)
 const processImage = async (req, res, next) => {
   try {
     if (!req.file) return next();
 
-    const ext = path.extname(req.file.originalname).toLowerCase();
+    // ✅ لو مفيش mimetype أو originalname نحط قيم افتراضية
+    if (!req.file.mimetype || !req.file.originalname) {
+      console.warn("⚠️ Missing mimetype/originalname — forcing .jpg");
+      req.file.mimetype = "image/jpeg";
+      const newPath = req.file.path + ".jpg";
+      fs.renameSync(req.file.path, newPath);
+      req.file.filename = path.basename(newPath);
+      req.file.path = newPath;
+    }
 
-    // ✅ لو مش صورة، عدي زي ما هو
-    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".heic", ".heif"];
+    const ext = path.extname(req.file.path).toLowerCase();
+    const imageExts = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".tiff",
+      ".heic",
+      ".heif",
+    ];
+
+    // ✅ لو الملف مش صورة، نسيبه زي ما هو
     if (!imageExts.includes(ext)) {
       return next();
     }
 
     let outputPath = req.file.path;
 
-    // 🔄 لو HEIC → JPG
+    // 🔄 تحويل HEIC/HEIF إلى JPG
     if (ext === ".heic" || ext === ".heif") {
       try {
         const inputBuffer = fs.readFileSync(req.file.path);
@@ -57,11 +85,12 @@ const processImage = async (req, res, next) => {
 
         req.file.filename = path.basename(outputPath);
         req.file.path = outputPath;
+        req.file.mimetype = "image/jpeg";
       } catch (e) {
         console.warn("⚠️ HEIC convert failed, keeping original:", e.message);
       }
     } else {
-      // 📉 ضغط باقي الصور لـ JPG
+      // 📉 ضغط باقي الصور وتحويلها دائمًا لـ JPG
       try {
         const outputBuffer = await sharp(req.file.path)
           .resize({
@@ -79,6 +108,7 @@ const processImage = async (req, res, next) => {
 
         req.file.filename = path.basename(outputPath);
         req.file.path = outputPath;
+        req.file.mimetype = "image/jpeg";
       } catch (e) {
         console.warn("⚠️ Sharp compression failed, keeping original:", e.message);
       }
@@ -87,7 +117,7 @@ const processImage = async (req, res, next) => {
     next();
   } catch (err) {
     console.error("❌ Error in processImage:", err);
-    // 👇 متوقفش السيرفر، عدّي وخلي الملف الأصلي زي ما هو
+    // 👇 لو حصل خطأ، نعدي الملف زي ما هو
     next();
   }
 };

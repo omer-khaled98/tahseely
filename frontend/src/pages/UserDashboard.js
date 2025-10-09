@@ -658,35 +658,49 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleFileChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // 🧩 ضغط الصورة لو حجمها أكبر من 1 ميجابايت
-      let finalFile = file;
-      if (file.size > 1 * 1024 * 1024 && file.type.startsWith("image/")) {
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1600,
-          useWebWorker: true,
-        };
-        finalFile = await imageCompression(file, options);
-      }
-
-      // 🧠 حفظ الصورة في الذاكرة ومعاينتها
-      setFiles((p) => ({ ...p, [fileKey]: finalFile }));
-      const url = URL.createObjectURL(finalFile);
-      setPreview(url);
-    } catch (err) {
-      console.error("❌ Error compressing file:", err);
-      alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
-    } finally {
-      setLoading(false);
+    // ✅ 1. لو الملف ملوش اسم أو نوع، نضيف له اسم وامتداد .jpg
+    let fixedFile = file;
+    if (!file.name || !file.type) {
+      const blobExt = "jpg";
+      Object.defineProperty(file, "name", {
+        value: `upload-${Date.now()}.${blobExt}`,
+        writable: false,
+      });
+      Object.defineProperty(file, "type", {
+        value: "image/jpeg",
+        writable: false,
+      });
+      fixedFile = file;
     }
-  };
+
+    // ✅ 2. نضغط الصورة ونحوّلها لـ JPG
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1600,
+      useWebWorker: true,
+      fileType: "image/jpeg", // 🔥 نحول دائمًا لـ JPG
+    };
+    const compressedFile = await imageCompression(fixedFile, options);
+
+    // ✅ 3. نخزنها في state ونعاينها
+    setFiles((p) => ({ ...p, [fileKey]: compressedFile }));
+    const url = URL.createObjectURL(compressedFile);
+    setPreview(url);
+  } catch (err) {
+    console.error("❌ Error processing image:", err);
+    alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="p-3 bg-white/70 border border-gray-200 rounded-2xl shadow-sm transition-all">
