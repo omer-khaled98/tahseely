@@ -39,8 +39,6 @@ Chart.register(
   Filler
 );
 
-// ===== PDF tools =====
-
 export default function AccountantDashboard() {
   // ================= 1) API =================
   const token = localStorage.getItem("token");
@@ -118,45 +116,51 @@ export default function AccountantDashboard() {
   }, [api]);
 
   // ================= 7) جلب التقارير =================
-  const fetchForms = async () => {
+// ✅ دالة fetchForms النهائية
+const fetchForms = async () => {
+  try {
     setLoading(true);
     setErrorMsg("");
 
-    const baseParams = {};
-    if (filters.branchId) baseParams.branchId = filters.branchId;
-    if (filters.startDate) baseParams.startDate = filters.startDate;
-    if (filters.endDate) baseParams.endDate = filters.endDate;
-    if (filters.q) baseParams.q = filters.q;
+    // 🧩 بناء الباراميترات حسب كل الفلاتر
+    const params = {};
+    if (filters.branchId) params.branchId = filters.branchId;
+    if (filters.startDate) params.startDate = filters.startDate;
+    if (filters.endDate) params.endDate = filters.endDate;
+    if (filters.q) params.q = filters.q;
+    if (filters.status && filters.status !== "")
+      params.accountantStatus = filters.status; // ✅ اسم الباراميتر الفعلي في الباك
 
-    const tableParams = { ...baseParams };
-    if (filters.status) tableParams.status = filters.status;
+    // 🪵 Console Debug 1 — عرض الباراميترات المرسلة
 
-    try {
-      const tableReq = api.get("/api/forms/review", { params: tableParams });
-      const cardReqs = ["pending", "released", "rejected"].map((s) =>
-        api.get("/api/forms/review", { params: { ...baseParams, status: s } })
+    // 🧩 استدعاء API واحد فقط
+    const res = await api.get("/api/forms/review", { params });
+
+    // 🪵 Console Debug 2 — عرض النتائج المستلمة
+
+    // 🧩 معالجة البيانات محليًا (فلترة إضافية في حال السيرفر ما رجعش الفلتر مضبوط)
+    let data = res.data || [];
+    if (filters.status && filters.status !== "") {
+      data = data.filter(
+        (f) => (f.accountantRelease?.status || "pending") === filters.status
       );
 
-      const [tableRes, ...cardsRes] = await Promise.all([
-        tableReq,
-        ...cardReqs,
-      ]);
-      setForms(tableRes.data || []);
+      // 🪵 Console Debug 3 — بعد الفلترة اليدوية
 
-      const mergedForCards = cardsRes.flatMap((r) => r?.data || []);
-      const uniqueForms = Array.from(
-        new Map(mergedForCards.map((f) => [f._id, f])).values()
-      );
-      setFormsAll(uniqueForms);
-    } catch (e) {
-      console.error(e);
-      setErrorMsg(e?.response?.data?.message || "تعذّر تحميل التقارير");
-      setForms([]);
-      setFormsAll([]);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // 🧩 حفظ البيانات النهائية
+    setForms(data);
+
+    // 🪵 Console Debug 4 — تأكيد النهائي في الواجهة
+  } catch (err) {
+    setErrorMsg(err?.response?.data?.message || "تعذّر تحميل التقارير");
+    setForms([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchForms();
@@ -169,7 +173,6 @@ export default function AccountantDashboard() {
     filters.status,
     filters.q,
   ]);
-
   // ================= 9) مرفقات =================
   const fetchAttachments = async (formId) => {
     setAttLoading(true);
@@ -189,25 +192,19 @@ export default function AccountantDashboard() {
     fetchAttachments(f._id);
   };
 
-  // ================= 11) مراجعة =================
-  const onRelease = async (f) => {
-    if (!window.confirm("تأكيد عمل Release للتقرير؟")) return;
-    try {
-      const res = await api.patch(`/api/forms/${f._id}/release`, {
-        action: "release",
-      });
-      alert("تم عمل Release بنجاح");
-      fetchForms();
-      if (selectedForm && selectedForm._id === f._id)
-        setSelectedForm(res.data?.form || res.data);
-    } catch (e) {
-      console.error(e);
-      alert(e?.response?.data?.message || "فشل عمل Release");
-    }
-  };
+  // ================= 11) مراجعة (مع ملاحظات/أسباب) =================
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewAction, setReviewAction] = useState(""); // "release" أو "reject"
 
-  const onReject = async (f) => {
-    if (!window.confirm("تأكيد عمل Reject للتقرير؟")) return;
+  const confirmReview = async () => {
+    if (!reviewTarget || !reviewAction) return;
+
+    if (reviewAction === "reject" && !reviewNote.trim()) {
+      alert("اجباري يجب كتابة سبب الرفض قبل الإرسال");
+      return;
+    }
+
     try {
       const res = await api.patch(`/api/forms/${f._id}/reject`, {
         action: "reject",
@@ -216,10 +213,50 @@ export default function AccountantDashboard() {
       fetchForms();
       if (selectedForm && selectedForm._id === f._id)
         setSelectedForm(res.data?.form || res.data);
+      const endpoint =
+        reviewAction === "release"
+          ? `/api/forms/${reviewTarget._id}/release`
+          : `/api/forms/${reviewTarget._id}/reject`;
+
+      const res = await api.patch(endpoint, {
+        action: reviewAction,
+        note: reviewNote.trim(),
+      });
+
+      alert(
+        reviewAction === "release"
+          ? "✅ تم عمل Release بنجاح"
+          : "❌ تم رفض التقرير"
+      );
+
+      // حدّث القوائم
+      fetchForms();
+
+      // حدّث التفاصيل المفتوحة إن كانت لنفس الفورم
+      if (selectedForm && selectedForm._id === reviewTarget._id) {
+        setSelectedForm(res.data?.form || res.data);
+      }
+
+      // اغلق المودال وامسح الحالة
+      setReviewTarget(null);
+      setReviewNote("");
+      setReviewAction("");
     } catch (e) {
       console.error(e);
-      alert(e?.response?.data?.message || "فشل الرفض");
+      alert(e?.response?.data?.message || "حدث خطأ أثناء تنفيذ العملية");
     }
+  };
+
+  const onRelease = (f) => {
+    setReviewTarget(f);
+    setReviewAction("release");
+    setReviewNote(""); // ملاحظة اختيارية
+  };
+
+  const onReject = (f) => {
+    setReviewTarget(f);
+    setReviewAction("reject");
+    setReviewNote(""); // سبب الرفض — إجباري قبل التأكيد
   };
 
   // ================= PDF Export =================
@@ -267,15 +304,18 @@ export default function AccountantDashboard() {
   };
 
   // ================= 12) كروت العدادات =================
-  const counts = useMemo(() => {
-    const c = { total: formsAll.length, pending: 0, released: 0, rejected: 0 };
-    for (const f of formsAll) {
-      if (f.accountantRelease?.status === "released") c.released++;
-      else if (f.accountantRelease?.status === "rejected") c.rejected++;
-      else c.pending++;
-    }
-    return c;
-  }, [formsAll]);
+const counts = useMemo(() => {
+  const c = { total: forms.length, pending: 0, released: 0, rejected: 0 };
+  for (const f of forms) {
+    const st = f?.accountantRelease?.status || "pending";
+    if (st === "released") c.released++;
+    else if (st === "rejected") c.rejected++;
+    else c.pending++;
+  }
+  return c;
+}, [forms]);
+
+
 
   const totals = useMemo(() => {
     return forms.reduce(
@@ -386,10 +426,13 @@ export default function AccountantDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden md:inline text-sm text-gray-600">
-              مرحباً، <b>{meName}</b>
+              مرحباً، <b>{localStorage.getItem("userName") || "محاسب"}</b>
             </span>
             <button
-              onClick={handleLogout}
+              onClick={() => {
+                localStorage.removeItem("token");
+                window.location.href = "/login";
+              }}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow"
             >
               <LogOut size={16} />
@@ -429,82 +472,94 @@ export default function AccountantDashboard() {
         </section>
 
         {/* فلاتر */}
-        <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
-          <div className="flex items-center gap-2 mb-3 text-gray-600">
-            <Filter size={16} />
-            <b>فلاتر البحث</b>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-            <div className="md:col-span-2 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
-              <Search size={16} className="text-gray-400" />
-              <input
-                value={filters.q}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, q: e.target.value }))
-                }
-                className="outline-none w-full text-sm"
-                placeholder="بحث بالكلمات (ملاحظات/مستخدم/فرع)…"
-              />
-            </div>
+<section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
+  <div className="flex items-center gap-2 mb-3 text-gray-600">
+    <Filter size={16} />
+    <b>فلاتر البحث</b>
+  </div>
 
-            <select
-              value={filters.branchId}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, branchId: e.target.value }))
-              }
-              className="border rounded-xl px-3 py-2 bg-white text-sm"
-            >
-              <option value="">كل الفروع</option>
-              {branches.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+    {/* 🔍 بحث نصي */}
+    <div className="md:col-span-2 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
+      <Search size={16} className="text-gray-400" />
+      <input
+        value={filters.q}
+        onChange={(e) =>
+          setFilters((p) => ({ ...p, q: e.target.value }))
+        }
+        className="outline-none w-full text-sm"
+        placeholder="بحث بالكلمات (ملاحظات / مستخدم / فرع)…"
+      />
+    </div>
 
-            <select
-              value={filters.status}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, status: e.target.value }))
-              }
-              className="border rounded-xl px-3 py-2 bg-white text-sm"
-            >
-              <option value="">كل الحالات</option>
-              <option value="pending">Pending</option>
-              <option value="released">Released</option>
-              <option value="rejected">Rejected</option>
-            </select>
+    {/* 🏢 الفروع */}
+    <select
+      value={filters.branchId}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, branchId: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    >
+      <option value="">كل الفروع</option>
+      {branches.map((b) => (
+        <option key={b._id} value={b._id}>
+          {b.name}
+        </option>
+      ))}
+    </select>
 
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, startDate: e.target.value }))
-              }
-              className="border rounded-xl px-3 py-2 bg-white text-sm"
-            />
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, endDate: e.target.value }))
-              }
-              className="border rounded-xl px-3 py-2 bg-white text-sm"
-            />
+    {/* 📄 الحالة */}
+    <select
+      value={filters.status}
+      onChange={(e) =>
+        setFilters((p) => ({
+          ...p,
+          status: e.target.value || "", // ✅ ضمان أن القيمة دائمًا String واضحة
+        }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    >
+      <option value="">كل الحالات</option>
+      <option value="pending">قيد المراجعة</option>
+      <option value="released">تم الاعتماد</option>
+      <option value="rejected">تم الرفض</option>
+    </select>
 
-            <div className="md:col-span-6 flex justify-end">
-              <button
-                onClick={fetchForms}
-                className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95"
-              >
-                تحديث
-              </button>
-            </div>
-          </div>
+    {/* 📅 التاريخ من */}
+    <input
+      type="date"
+      value={filters.startDate}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, startDate: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    />
 
-          {errorMsg && <div className="mt-3 text-red-600">{errorMsg}</div>}
-        </section>
+    {/* 📅 التاريخ إلى */}
+    <input
+      type="date"
+      value={filters.endDate}
+      onChange={(e) =>
+        setFilters((p) => ({ ...p, endDate: e.target.value }))
+      }
+      className="border rounded-xl px-3 py-2 bg-white text-sm"
+    />
 
+    {/* 🔄 زر تحديث */}
+    <div className="md:col-span-6 flex justify-end">
+      <button
+        onClick={fetchForms}
+        className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95 transition"
+      >
+        تحديث
+      </button>
+    </div>
+  </div>
+
+  {errorMsg && (
+    <div className="mt-3 text-red-600">{errorMsg}</div>
+  )}
+</section>
         {/* إجماليات النتائج المعروضة */}
         <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-8">
           <h3 className="text-md font-semibold mb-3">
@@ -642,7 +697,6 @@ export default function AccountantDashboard() {
           </div>
         </section>
       </main>
-
       {/* مودال التفاصيل */}
       {selectedForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
@@ -755,11 +809,13 @@ export default function AccountantDashboard() {
                   <div className="border rounded-xl p-3 bg-white/70">
                     <div className="text-gray-500 mb-1">المبيعات الفعلية</div>
                     <div className="font-bold">
-                      {currency(
-                        Number(selectedForm?.cashCollection || 0) +
-                          appsWithFallback(selectedForm) +
-                          bankWithFallback(selectedForm)
-                      )}
+                    {currency(
+                      Number(selectedForm?.cashCollection || 0) +
+                        appsWithFallback(selectedForm) +
+                        bankWithFallback(selectedForm) +
+                        Number(selectedForm?.purchases || 0) // ✅ أضفنا المشتريات هنا
+                    )}
+
                     </div>
                   </div>
                   <div className="border rounded-xl p-3 bg-white/70">
@@ -769,10 +825,10 @@ export default function AccountantDashboard() {
                     </div>
                   </div>
                 </div>
+
                 {/* 🧩 المرفقات */}
                 <div className="mt-4 border rounded-xl p-3 bg-white/70">
                   <div className="font-semibold mb-2">📎 المرفقات</div>
-
                   {attLoading ? (
                     <div className="text-sm text-gray-500">جاري التحميل...</div>
                   ) : attachments.length > 0 ? (
@@ -780,10 +836,7 @@ export default function AccountantDashboard() {
                       {attachments.map((a) => (
                         <a
                           key={a._id}
-                          href={
-                            process.env.REACT_APP_API_URL +
-                            `${a.fileUrl.replace(/\\\\/g, "/")}`
-                          }
+                          href={a.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block border rounded-xl overflow-hidden hover:shadow-md transition"
@@ -832,6 +885,51 @@ export default function AccountantDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💬 مودال الملاحظات/سبب الرفض */}
+      {reviewTarget && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-5">
+            <h3 className="text-lg font-bold mb-3 text-center">
+              {reviewAction === "release"
+                ? "إضافة ملاحظة (اختياري)"
+                : "سبب الرفض (إجباري)"}
+            </h3>
+            <textarea
+              className="w-full border rounded-xl p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-indigo-400 outline-none"
+              placeholder={
+                reviewAction === "release"
+                  ? "اكتب ملاحظتك للمستخدم (اختياري)"
+                  : "اكتب سبب الرفض هنا..."
+              }
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setReviewTarget(null);
+                  setReviewNote("");
+                  setReviewAction("");
+                }}
+                className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmReview}
+                className={`px-4 py-2 rounded-xl text-white ${
+                  reviewAction === "release"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "bg-rose-600 hover:bg-rose-700"
+                }`}
+              >
+                تأكيد
+              </button>
             </div>
           </div>
         </div>

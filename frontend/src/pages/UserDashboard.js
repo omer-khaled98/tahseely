@@ -61,7 +61,7 @@ export default function UserDashboard() {
     pettyCash: "",
     purchases: "",
     cashCollection: "",
-    actualSales: "",
+    actualSales: 0,
     notes: "",
   });
 
@@ -89,7 +89,6 @@ export default function UserDashboard() {
         console.error("❌ Error fetching branches", err?.response || err);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // ---------------- جلب القوالب من الأدمن ----------------
@@ -110,7 +109,6 @@ export default function UserDashboard() {
         console.error("❌ Error fetching templates:", e?.response || e);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // ---------------- جلب الفورمز الخاصة باليوزر ----------------
@@ -124,7 +122,6 @@ export default function UserDashboard() {
   };
   useEffect(() => {
     fetchMyForms();
-    // eslint-disable-next-line
   }, [token]);
 
   // ---------------- المرفقات ----------------
@@ -136,6 +133,7 @@ export default function UserDashboard() {
       console.error("❌ Error fetching attachments:", err?.response || err);
     }
   };
+
   // ---------------- الإجماليات لايف ----------------
   const appsTotal = useMemo(
     () => applications.reduce((s, x) => s + (Number(x.amount) || 0), 0),
@@ -145,10 +143,25 @@ export default function UserDashboard() {
     () => bankCollections.reduce((s, x) => s + (Number(x.amount) || 0), 0),
     [bankCollections]
   );
-  const totalSalesLive = useMemo(
-    () => (Number(formData.cashCollection) || 0) + appsTotal + bankTotal,
-    [formData.cashCollection, appsTotal, bankTotal]
-  );
+
+  // ✅ تعديل: المبيعات الفعلية تتحسب تلقائيًا بدون كتابة اليوزر
+// ✅ تعديل: المبيعات الفعلية تتحسب تلقائيًا بدون كتابة اليوزر
+const actualSalesAuto = useMemo(
+  () =>
+    (Number(formData.cashCollection) || 0) +
+    appsTotal +
+    bankTotal +
+    (Number(formData.purchases) || 0), // ✅ تمت إضافة المشتريات
+  [formData.cashCollection, appsTotal, bankTotal, formData.purchases]
+);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      actualSales: actualSalesAuto,
+    }));
+  }, [actualSalesAuto]);
+  const totalSalesLive = actualSalesAuto;
 
   // ---------------- إرسال الفورم ----------------
   const handleSubmit = async (e) => {
@@ -176,6 +189,7 @@ export default function UserDashboard() {
         applications: appsPayload,
         bankCollections: bankPayload,
         appsCollection: appsTotal,
+        actualSales: actualSalesAuto, // ✅ اعتماد القيمة المحسوبة فقط
       };
 
       // 1️⃣ إنشاء الفورم
@@ -216,6 +230,7 @@ export default function UserDashboard() {
       toast.error(err?.response?.data?.message || "حصل خطأ أثناء إنشاء الفورم");
     }
   };
+
   // ---------------- إجمالي المبيعات اليومية ----------------
   const totalDailySales = forms.reduce(
     (sum, f) =>
@@ -292,6 +307,7 @@ export default function UserDashboard() {
         (f.notes || "").toLowerCase().includes(t)
     );
   }, [forms, q]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50">
       {/* Toast Notifications */}
@@ -323,9 +339,8 @@ export default function UserDashboard() {
           </div>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* كروت علوية */}
+        {/* كروت علوية */} 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <StatCard
             icon={<FilePlus2 className="opacity-80" />}
@@ -442,22 +457,17 @@ export default function UserDashboard() {
               totalLabel={`إجمالي البنك: ${bankTotal.toLocaleString()}`}
             />
 
-            {/* المبيعات الفعلية + الملاحظات */}
+            {/* ✅ المبيعات الفعلية (حساب تلقائي فقط) + الملاحظات */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  المبيعات الفعلية
+                  المبيعات الفعلية (تحسب تلقائيًا)
                 </label>
                 <input
                   type="number"
-                  value={formData.actualSales}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      actualSales: Number(e.target.value),
-                    })
-                  }
-                  className="border p-2 rounded-xl w-full"
+                  value={actualSalesAuto}
+                  disabled
+                  className="border p-2 rounded-xl w-full bg-gray-100 text-gray-600 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -511,7 +521,6 @@ export default function UserDashboard() {
             </div>
           </div>
         </section>
-
         {/* جدول الفورمز */}
         <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
@@ -531,7 +540,7 @@ export default function UserDashboard() {
             onClick={() => setShowForms(!showForms)}
             className="mb-3 w-full bg-gray-900 text-white py-2 rounded-xl hover:opacity-95"
           >
-            {showForms ? "إخفاء الفورمز" : "عرض الفورمز الخاصة بي"}
+            {showForms ? "إخفاء الفورمز" : "عرض التقارير الخاصة بي"}
           </button>
 
           {showForms && (
@@ -546,7 +555,9 @@ export default function UserDashboard() {
                       <th className="p-2 border">العهدة</th>
                       <th className="p-2 border">المشتريات</th>
                       <th className="p-2 border">إجمالي المبيعات</th>
-                      <th className="p-2 border">الملاحظات</th>
+                      <th className="p-2 border">ملاحظات</th>
+                      <th className="p-2 border">حالة المحاسب</th>
+                      <th className="p-2 border">ملاحظات المحاسب</th>
                       <th className="p-2 border">المرفقات</th>
                     </tr>
                   </thead>
@@ -568,6 +579,21 @@ export default function UserDashboard() {
                             (f.appsCollection || 0)}
                         </td>
                         <td className="p-2 border">{f.notes || "-"}</td>
+                                                <td
+                          className={`p-2 border font-semibold ${
+                            f.accountantRelease?.status === "released"
+                              ? "text-green-600"
+                              : f.accountantRelease?.status === "rejected"
+                              ? "text-red-600"
+                              : "text-amber-600"
+                          }`}
+                        >
+                          {f.accountantRelease?.status || "pending"}
+                        </td>
+                        <td className="p-2 border">
+                          {f.accountantRelease?.note || "-"}
+                        </td>
+
                         <td className="p-2 border">
                           <button
                             onClick={() => fetchAttachments(f._id)}
@@ -633,6 +659,7 @@ export default function UserDashboard() {
     </div>
   );
 }
+
 // ========= مكوّنات صغيرة =========
 function StatCard({ icon, title, value, tint }) {
   return (
@@ -653,54 +680,48 @@ function StatCard({ icon, title, value, tint }) {
   );
 }
 
-
 function UploadBox({ label, value, onChange, fileKey, setFiles }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-const handleFileChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    // ✅ 1. لو الملف ملوش اسم أو نوع، نضيف له اسم وامتداد .jpg
-    let fixedFile = file;
-    if (!file.name || !file.type) {
-      const blobExt = "jpg";
-      Object.defineProperty(file, "name", {
-        value: `upload-${Date.now()}.${blobExt}`,
-        writable: false,
-      });
-      Object.defineProperty(file, "type", {
-        value: "image/jpeg",
-        writable: false,
-      });
-      fixedFile = file;
+      let fixedFile = file;
+      if (!file.name || !file.type) {
+        Object.defineProperty(file, "name", {
+          value: `upload-${Date.now()}.jpg`,
+          writable: false,
+        });
+        Object.defineProperty(file, "type", {
+          value: "image/jpeg",
+          writable: false,
+        });
+        fixedFile = file;
+      }
+
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+        fileType: "image/jpeg",
+      };
+      const compressedFile = await imageCompression(fixedFile, options);
+
+      setFiles((p) => ({ ...p, [fileKey]: compressedFile }));
+      const url = URL.createObjectURL(compressedFile);
+      setPreview(url);
+    } catch (err) {
+      console.error("❌ Error processing image:", err);
+      alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
+    } finally {
+      setLoading(false);
     }
-
-    // ✅ 2. نضغط الصورة ونحوّلها لـ JPG
-    const options = {
-      maxSizeMB: 1,
-      maxWidthOrHeight: 1600,
-      useWebWorker: true,
-      fileType: "image/jpeg", // 🔥 نحول دائمًا لـ JPG
-    };
-    const compressedFile = await imageCompression(fixedFile, options);
-
-    // ✅ 3. نخزنها في state ونعاينها
-    setFiles((p) => ({ ...p, [fileKey]: compressedFile }));
-    const url = URL.createObjectURL(compressedFile);
-    setPreview(url);
-  } catch (err) {
-    console.error("❌ Error processing image:", err);
-    alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <div className="p-3 bg-white/70 border border-gray-200 rounded-2xl shadow-sm transition-all">
@@ -715,7 +736,6 @@ const handleFileChange = async (e) => {
       />
 
       <div className="flex gap-2 flex-wrap">
-        {/* زر رفع ملف من الذاكرة */}
         <label className="flex-1">
           <input
             type="file"
@@ -728,7 +748,6 @@ const handleFileChange = async (e) => {
           </span>
         </label>
 
-        {/* زر تصوير بالكاميرا */}
         <label className="flex-1">
           <input
             type="file"
@@ -743,7 +762,6 @@ const handleFileChange = async (e) => {
         </label>
       </div>
 
-      {/* معاينة الصورة بعد التصوير */}
       {preview && (
         <div className="mt-3 relative">
           <img
@@ -767,15 +785,7 @@ const handleFileChange = async (e) => {
   );
 }
 
-
-function DynamicRows({
-  title,
-  rows,
-  setRows,
-  templates,
-  addLabel,
-  totalLabel,
-}) {
+function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-2">{title}</label>
@@ -804,7 +814,7 @@ function DynamicRows({
             value={row.amount}
             onChange={(e) => {
               const next = [...rows];
-              next[idx].amount = Number(e.target.value) || 0;
+            next[idx].amount = parseFloat(e.target.value) || 0;
               setRows(next);
             }}
             className="border p-2 rounded-xl flex-1"
@@ -832,3 +842,5 @@ function DynamicRows({
     </div>
   );
 }
+
+
