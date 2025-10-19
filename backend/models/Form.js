@@ -1,4 +1,3 @@
-// models/Form.js
 const mongoose = require("mongoose");
 
 const lineItem = new mongoose.Schema({
@@ -33,10 +32,10 @@ const formSchema = new mongoose.Schema({
   accountantRelease: {
     status: { type: String, enum: ["pending", "released", "rejected"], default: "pending" },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    at: { type: Date }
+    at: { type: Date },
+    note: { type: String, default: "" } // ✅ تمت الإضافة هنا
   },
 
-  // ✅ جديد
   branchManagerRelease: {
     status: { type: String, enum: ["pending", "released", "rejected"], default: "pending" },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
