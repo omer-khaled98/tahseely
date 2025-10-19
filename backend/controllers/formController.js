@@ -348,19 +348,31 @@ const getMyForms = async (req, res) => {
 // 🟡 Accountant review list
 const listFormsForReview = async (req, res) => {
   try {
-    const { branchId, startDate, endDate, status } = req.query;
+    const { branchId, startDate, endDate, status, accountantStatus, q = "" } = req.query;
     const filters = {};
+
     if (branchId) filters.branch = branchId;
     if (startDate || endDate) {
       filters.formDate = {};
       if (startDate) filters.formDate.$gte = new Date(startDate);
       if (endDate) filters.formDate.$lte = new Date(endDate);
     }
-    if (status) {
-      filters.status = status;
+
+    // ✅ دعم فلترة حالة المحاسب من الواجهة
+    const effectiveStatus = accountantStatus || status;
+    if (effectiveStatus) {
+      filters["accountantRelease.status"] = effectiveStatus;
     }
 
-    const forms = await Form.find(filters)
+    // 🔍 بحث حر في الملاحظات (اختياري)
+    const or = [];
+    if (q.trim()) {
+      const rx = new RegExp(q.trim(), "i");
+      or.push({ notes: rx });
+    }
+    const query = or.length ? { $and: [filters, { $or: or }] } : filters;
+
+    const forms = await Form.find(query)
       .populate("branch", "name")
       .populate("user", "name")
       .sort({ formDate: -1, createdAt: -1 });
@@ -371,6 +383,7 @@ const listFormsForReview = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // 🔵 Admin listing
 const listFormsForAdmin = async (req, res) => {
