@@ -86,6 +86,7 @@ export default function AccountantDashboard() {
   const sumBank = (f) =>
     (f?.bankCollections || []).reduce((s, b) => s + Number(b?.amount || 0), 0);
 
+  
   const appsWithFallback = (f) => {
     const calc = sumApps(f);
     return calc > 0 ? calc : Number(f?.appsTotal || f?.appsCollection || 0);
