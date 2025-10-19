@@ -200,7 +200,7 @@ const fetchForms = async () => {
     if (!reviewTarget || !reviewAction) return;
 
     if (reviewAction === "reject" && !reviewNote.trim()) {
-      alert("يجب كتابة سبب الرفض قبل الإرسال");
+      alert("اجباري يجب كتابة سبب الرفض قبل الإرسال");
       return;
     }
 

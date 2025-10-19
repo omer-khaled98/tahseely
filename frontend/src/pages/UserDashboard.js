@@ -540,7 +540,7 @@ const actualSalesAuto = useMemo(
             onClick={() => setShowForms(!showForms)}
             className="mb-3 w-full bg-gray-900 text-white py-2 rounded-xl hover:opacity-95"
           >
-            {showForms ? "إخفاء الفورمز" : "عرض الفورمز الخاصة بي"}
+            {showForms ? "إخفاء الفورمز" : "عرض التقارير الخاصة بي"}
           </button>
 
           {showForms && (
