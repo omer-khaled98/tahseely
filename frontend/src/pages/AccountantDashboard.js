@@ -1750,7 +1750,11 @@ export default function AccountantDashboard() {
                       {attachments.map((a) => (
                         <a
                           key={a._id}
-                          href={a.fileUrl}
+                          // href={a.fileUrl}
+                           href={
+                          process.env.REACT_APP_API_URL +
+                          `${a.fileUrl.replace(/\\\\/g, "/")}`
+                        }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block border rounded-xl overflow-hidden hover:shadow-md transition"
