@@ -43,6 +43,7 @@ export default function UserDashboard() {
   const [branches, setBranches] = useState([]);
   const [forms, setForms] = useState([]);
   const [files, setFiles] = useState({});
+  const [resetKey, setResetKey] = useState(0);
   const [showForms, setShowForms] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState(null);
 
@@ -198,19 +199,29 @@ const actualSalesAuto = useMemo(
       toast.success(" تم إنشاء الفورم بنجاح");
 
       // 2️⃣ رفع المرفقات المرتبطة
-      for (const [key, file] of Object.entries(files)) {
-        if (file) {
-          const formDataUpload = new FormData();
-          formDataUpload.append("file", file);
-          formDataUpload.append("form", createdForm._id);
-          formDataUpload.append("type", key);
+for (const [key, fileList] of Object.entries(files)) {
+  if (fileList && fileList.length > 0) {
+    const formDataUpload = new FormData();
 
-          await api.post("/api/documents", formDataUpload, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          toast.success(`📎 تم رفع مرفق ${key} بنجاح`);
-        }
-      }
+    // 🟢 رفع كل الملفات مع نفس المفاتيح
+    for (const file of fileList) {
+      formDataUpload.append("file", file);
+    }
+
+    formDataUpload.append("form", createdForm._id);
+    formDataUpload.append("type", key);
+
+    try {
+      await api.post("/api/documents", formDataUpload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(`📎 تم رفع ${fileList.length} مرفق/مرفقات (${key}) بنجاح`);
+    } catch (err) {
+      console.error("❌ Error uploading files:", err?.response || err);
+      toast.error(`حدث خطأ أثناء رفع مرفقات ${key}`);
+    }
+  }
+}
 
       // 3️⃣ Reset بعد النجاح
       setForms((prev) => [...prev, createdForm]);
@@ -225,6 +236,7 @@ const actualSalesAuto = useMemo(
       setApplications([]);
       setBankCollections([]);
       setFiles({});
+      setResetKey((prev) => prev + 1);
     } catch (err) {
       console.error("❌ Error creating form:", err?.response || err);
       toast.error(err?.response?.data?.message || "حصل خطأ أثناء إنشاء الفورم");
@@ -408,33 +420,34 @@ const actualSalesAuto = useMemo(
 
             {/* العهدة + المشتريات + التحصيل النقدي */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <UploadBox
-                label="العهدة"
-                value={formData.pettyCash}
-                onChange={(v) =>
-                  setFormData({ ...formData, pettyCash: Number(v) })
-                }
-                fileKey="petty"
-                setFiles={setFiles}
-              />
-              <UploadBox
-                label="المشتريات"
-                value={formData.purchases}
-                onChange={(v) =>
-                  setFormData({ ...formData, purchases: Number(v) })
-                }
-                fileKey="purchase"
-                setFiles={setFiles}
-              />
-              <UploadBox
-                label="التحصيل النقدي"
-                value={formData.cashCollection}
-                onChange={(v) =>
-                  setFormData({ ...formData, cashCollection: Number(v) })
-                }
-                fileKey="cash"
-                setFiles={setFiles}
-              />
+<UploadBox
+  key={`petty-${resetKey}`}
+  label="العهدة"
+  value={formData.pettyCash}
+  onChange={(v) => setFormData({ ...formData, pettyCash: Number(v) })}
+  fileKey="petty"
+  setFiles={setFiles}
+/>
+
+<UploadBox
+  key={`purchase-${resetKey}`}
+  label="المشتريات"
+  value={formData.purchases}
+  onChange={(v) => setFormData({ ...formData, purchases: Number(v) })}
+  fileKey="purchase"
+  setFiles={setFiles}
+/>
+
+<UploadBox
+  key={`cash-${resetKey}`}
+  label="التحصيل النقدي"
+  value={formData.cashCollection}
+  onChange={(v) =>
+    setFormData({ ...formData, cashCollection: Number(v) })
+  }
+  fileKey="cash"
+  setFiles={setFiles}
+/>
             </div>
 
             {/* التطبيقات */}
@@ -681,46 +694,67 @@ function StatCard({ icon, title, value, tint }) {
 }
 
 function UploadBox({ label, value, onChange, fileKey, setFiles }) {
-  const [preview, setPreview] = useState(null);
+  const [previews, setPreviews] = useState([]); // 👈 مصفوفة صور بدل واحدة
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     try {
       setLoading(true);
+      const compressedFiles = [];
 
-      let fixedFile = file;
-      if (!file.name || !file.type) {
-        Object.defineProperty(file, "name", {
-          value: `upload-${Date.now()}.jpg`,
-          writable: false,
-        });
-        Object.defineProperty(file, "type", {
-          value: "image/jpeg",
-          writable: false,
-        });
-        fixedFile = file;
+      for (const file of files) {
+        let fixedFile = file;
+        if (!file.name || !file.type) {
+          Object.defineProperty(file, "name", {
+            value: `upload-${Date.now()}.jpg`,
+            writable: false,
+          });
+          Object.defineProperty(file, "type", {
+            value: "image/jpeg",
+            writable: false,
+          });
+          fixedFile = file;
+        }
+
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1600,
+          useWebWorker: true,
+          fileType: "image/jpeg",
+        };
+        const compressedFile = await imageCompression(fixedFile, options);
+        compressedFiles.push(compressedFile);
       }
 
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1600,
-        useWebWorker: true,
-        fileType: "image/jpeg",
-      };
-      const compressedFile = await imageCompression(fixedFile, options);
+      // 👇 نحفظ الملفات الجديدة مع القديمة
+      setFiles((p) => ({
+        ...p,
+        [fileKey]: [...(p[fileKey] || []), ...compressedFiles],
+      }));
 
-      setFiles((p) => ({ ...p, [fileKey]: compressedFile }));
-      const url = URL.createObjectURL(compressedFile);
-      setPreview(url);
+      // 👇 نحضر الصور للعرض
+      const newPreviews = compressedFiles.map((f) => ({
+        url: URL.createObjectURL(f),
+        name: f.name,
+      }));
+      setPreviews((prev) => [...prev, ...newPreviews]);
     } catch (err) {
-      console.error("❌ Error processing image:", err);
-      alert("حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى.");
+      console.error("❌ Error processing images:", err);
+      alert("حدث خطأ أثناء معالجة الملفات. حاول مرة أخرى.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const removeFile = (index) => {
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+    setFiles((p) => ({
+      ...p,
+      [fileKey]: (p[fileKey] || []).filter((_, i) => i !== index),
+    }));
   };
 
   return (
@@ -740,11 +774,12 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
           <input
             type="file"
             accept="*/*"
+            multiple // ✅ يسمح برفع أكثر من ملف
             className="hidden"
             onChange={handleFileChange}
           />
           <span className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 cursor-pointer text-sm font-medium shadow-sm active:scale-95 transition">
-            📎 <span>رفع ملف</span>
+            📎 <span>{loading ? "جارٍ الرفع..." : "رفع ملفات"}</span>
           </span>
         </label>
 
@@ -753,6 +788,7 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
             type="file"
             accept="image/*"
             capture="environment"
+            multiple // ✅ تصوير أكثر من صورة متتابعة
             className="hidden"
             onChange={handleFileChange}
           />
@@ -762,28 +798,30 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
         </label>
       </div>
 
-      {preview && (
-        <div className="mt-3 relative">
-          <img
-            src={preview}
-            alt="preview"
-            className="w-full rounded-xl border object-cover max-h-40"
-          />
-          <button
-            onClick={() => {
-              setPreview(null);
-              setFiles((p) => ({ ...p, [fileKey]: null }));
-            }}
-            type="button"
-            className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow"
-          >
-            ×
-          </button>
+      {previews.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {previews.map((p, i) => (
+            <div key={i} className="relative">
+              <img
+                src={p.url}
+                alt={p.name}
+                className="w-full rounded-xl border object-cover max-h-32"
+              />
+              <button
+                onClick={() => removeFile(i)}
+                type="button"
+                className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow"
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 }
+
 
 function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) {
   return (

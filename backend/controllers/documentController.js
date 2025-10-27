@@ -1,53 +1,56 @@
 const Document = require("../models/Document");
 
-// 🟢 رفع مرفق
+// 🟢 رفع مرفقات متعددة
 const uploadDocument = async (req, res) => {
   try {
     const { form: formFromBody, formId, type } = req.body;
     const form = formId || formFromBody;
 
     console.log("📥 Full req.body:", req.body);
-    console.log("📂 Uploaded file object:", req.file);
+    console.log("📂 Uploaded files:", req.files);
 
-    if (!req.file) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: "لم يتم رفع أي ملف" });
     }
     if (!form) {
       return res.status(400).json({ message: "Form ID مفقود" });
     }
 
-    // تحقق من type
     const allowedTypes = ["cash", "bank", "apps", "purchase", "petty"];
     if (!type || !allowedTypes.includes(type)) {
       return res.status(400).json({
-        message: `يجب تحديد نوع المرفق بشكل صحيح (القيم المسموحة: ${allowedTypes.join(", ")})`
+        message: `يجب تحديد نوع المرفق بشكل صحيح (القيم المسموحة: ${allowedTypes.join(", ")})`,
       });
     }
 
-    // ✅ نخزن المسار بشكل نظيف ثابت
-    const cleanPath = `/uploads/${req.file.filename}`.replace(/\\/g, "/");
+    const uploadedDocs = [];
 
-    console.log("📝 Upload request:", {
-      form,
-      type,
-      file: req.file.filename,
-      cleanPath,
-    });
+    for (const file of req.files) {
+      const cleanPath = `/uploads/${file.filename}`.replace(/\\/g, "/");
 
-    const doc = await Document.create({
-      form,
-      type,
-      fileUrl: cleanPath,
-    });
+      console.log("📝 Upload request:", {
+        form,
+        type,
+        file: file.filename,
+        cleanPath,
+      });
 
-    console.log("✅ Document created:", doc);
+      const doc = await Document.create({
+        form,
+        type,
+        fileUrl: cleanPath,
+      });
 
-    return res.status(201).json(doc);
+      uploadedDocs.push(doc);
+      console.log("✅ Document created:", doc.fileUrl);
+    }
+
+    return res.status(201).json(uploadedDocs);
   } catch (error) {
     console.error("❌ Error uploading document:", error);
-    return res.status(500).json({ 
-      message: error.message, 
-      stack: error.stack 
+    return res.status(500).json({
+      message: error.message,
+      stack: error.stack,
     });
   }
 };

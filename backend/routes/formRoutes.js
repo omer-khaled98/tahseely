@@ -2,23 +2,27 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
+const formController = require("../controllers/formController");
+const reviewController = require("../controllers/reviewController");
+
 const {
   createForm,
   getMyForms,
   updateForm,
   releaseForm,
-  adminReleaseForm,
   rejectForm,
-  listFormsForReview,
-  listFormsForAdmin,
-  adminRejectForm,
-  listFormsForBranchManager,
   branchManagerReleaseForm,
   branchManagerRejectForm,
+  adminReleaseForm,
+  adminRejectForm,
+  resubmitForm,
+  listFormsForReview,
+  listFormsForAdmin,
+  listFormsForBranchManager,
   listAllForms,
   deleteFormPermanently,
-  // ✅ أضفنا mapOut علشان نستخدمه في آخر Route
-} = require("../controllers/formController");
+  mapOut
+} = formController;
 
 //
 // 🟢 User routes
@@ -33,6 +37,15 @@ router.patch("/:id", protect, updateForm);
 router.get("/review", protect, authorizeRoles("Accountant"), listFormsForReview);
 router.patch("/:id/release", protect, authorizeRoles("Accountant"), releaseForm);
 router.patch("/:id/reject", protect, authorizeRoles("Accountant"), rejectForm);
+// ✅ إعادة إرسال بعد رفض المدير
+router.patch("/:id/resubmit", protect, authorizeRoles("Accountant"), resubmitForm);
+
+//
+// 🟣 Branch Manager routes
+//
+router.get("/branch-manager", protect, authorizeRoles("BranchManager"), listFormsForBranchManager);
+router.patch("/:id/branch-release", protect, authorizeRoles("BranchManager"), branchManagerReleaseForm);
+router.patch("/:id/branch-reject", protect, authorizeRoles("BranchManager"), branchManagerRejectForm);
 
 //
 // 🔵 Admin routes
@@ -44,20 +57,17 @@ router.get("/all", protect, authorizeRoles("Admin"), listAllForms);
 router.delete("/:id/delete", protect, authorizeRoles("Admin"), deleteFormPermanently);
 
 //
-// 🟣 Branch Manager routes
-//
-router.get("/branch-manager", protect, authorizeRoles("BranchManager"), listFormsForBranchManager);
-router.patch("/:id/branch-release", protect, authorizeRoles("BranchManager"), branchManagerReleaseForm);
-router.patch("/:id/branch-reject", protect, authorizeRoles("BranchManager"), branchManagerRejectForm);
+// ⚙️ Review Controller unified actions (اختياري)
+router.get("/review-list", protect, reviewController.listFormsForReview);
+router.put("/:id/accountant", protect, authorizeRoles("Accountant"), reviewController.accountantReleaseAction);
+router.put("/:id/branch-manager", protect, authorizeRoles("BranchManager"), reviewController.branchManagerAction);
+router.put("/:id/admin", protect, authorizeRoles("Admin"), reviewController.adminReleaseAction);
 
 //
-// 🟠 عرض فاتورة معينة بالتفصيل (للمعاينة)
-router.get("/:id", protect, authorizeRoles("Admin"), async (req, res) => {
+// 🟠 عرض فاتورة معينة بالتفصيل
+router.get("/:id", protect, async (req, res) => {
   try {
     const Form = require("../models/Form");
-    // ✅ استدعاء mapOut
-    const { mapOut } = require("../controllers/formController");
-
     const form = await Form.findById(req.params.id)
       .populate("user", "name")
       .populate("branch", "name")
@@ -65,11 +75,8 @@ router.get("/:id", protect, authorizeRoles("Admin"), async (req, res) => {
       .populate("branchManagerRelease.by", "name")
       .populate("adminRelease.by", "name");
 
-    if (!form) {
-      return res.status(404).json({ message: "Form not found" });
-    }
+    if (!form) return res.status(404).json({ message: "Form not found" });
 
-    // ✅ تمرير الفورم عبر mapOut لتنسيق القيم
     const formatted = mapOut(form);
     res.json(formatted);
   } catch (err) {

@@ -4,15 +4,18 @@ const router = express.Router();
 // 🟢 استدعاء الميدل وير الجديد بعد التعديل
 const { upload, processImage } = require("../middleware/uploadMiddleware");
 const { protect } = require("../middleware/authMiddleware");
-const { uploadDocument, getDocumentsByForm } = require("../controllers/documentController");
+const {
+  uploadDocument,
+  getDocumentsByForm,
+} = require("../controllers/documentController");
 
-// 🟢 رفع مرفق (الصورة هتتخزن + تتحول لو HEIC/HEIF + تتضغط لو كبيرة)
+// 🟢 رفع مرفقات متعددة (الصور هتتخزن + تتحول لو HEIC/HEIF + تتضغط لو كبيرة)
 router.post(
   "/",
   protect,
-  upload.single("file"),   // Multer يخزن الملف مؤقت
-  processImage,            // نضغط/نحوّل الصورة
-  uploadDocument           // نضيفها في الداتابيز ونرجّع fileUrl
+  upload.array("file"), // ✅ تم التبديل من single → array
+  processImage,
+  uploadDocument
 );
 
 // 🟡 جلب المرفقات لفورم
