@@ -1,11 +1,20 @@
 const mongoose = require("mongoose");
 
+// ✅ عناصر البند التفصيلي (Applications / Bank Collections)
 const lineItem = new mongoose.Schema({
-  template: { type: mongoose.Schema.Types.ObjectId, ref: "ReportTemplate", required: false },
+  template: { type: mongoose.Schema.Types.ObjectId, ref: "ReportTemplate" },
   name: { type: String, required: true },
   amount: { type: Number, default: 0 }
 }, { _id: false });
 
+// ✅ مرفقات متعددة (ملفات)
+const attachmentSchema = new mongoose.Schema({
+  filename: { type: String },
+  path: { type: String },
+  uploadedAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+// ✅ النموذج الرئيسي
 const formSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
@@ -27,15 +36,29 @@ const formSchema = new mongoose.Schema({
   bankTotal: { type: Number, default: 0 },
   totalSales: { type: Number, default: 0 },
 
-  status: { type: String, enum: ["draft", "released", "rejected"], default: "draft" },
+  // ✅ الحالة العامة
+  status: {
+    type: String,
+    enum: [
+      "draft",
+      "released",
+      "rejected",
+      "rejected_by_manager",
+      "resubmitted"
+    ],
+    default: "draft"
+  },
 
+  // ✅ قسم المحاسب
   accountantRelease: {
     status: { type: String, enum: ["pending", "released", "rejected"], default: "pending" },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     at: { type: Date },
-    note: { type: String, default: "" } // ✅ تمت الإضافة هنا
+    note: { type: String, default: "" },
+    returnReason: { type: String, default: "" } // السبب اللي جاي من المدير
   },
 
+  // ✅ قسم مدير الفرع
   branchManagerRelease: {
     status: { type: String, enum: ["pending", "released", "rejected"], default: "pending" },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -43,10 +66,12 @@ const formSchema = new mongoose.Schema({
     note: { type: String, default: "" }
   },
 
+  // ✅ قسم الأدمن
   adminRelease: {
     status: { type: String, enum: ["pending", "released", "rejected"], default: "pending" },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    at: { type: Date }
+    at: { type: Date },
+    note: { type: String, default: "" }
   },
 
   adminNote: { type: String, default: "" },
@@ -54,13 +79,23 @@ const formSchema = new mongoose.Schema({
   receivedApps: { type: Number, default: 0 },
   receivedBank: { type: Number, default: 0 },
 
+  // ✅ مرفقات البنك أو المستندات
+  attachments: [attachmentSchema],
+
+  // ✅ المستخدم اللي راجع أو عدّل آخر مرة
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
+  // ✅ سبب الرفض العام (إن وجد)
+  rejectionReason: { type: String, default: "" }
+
 }, { timestamps: true });
 
+// 🧮 دالة مساعدة لحساب المجموع
 function sum(arr, key = "amount") {
   return (arr || []).reduce((s, x) => s + (Number(x?.[key]) || 0), 0);
 }
 
+// 🧩 قبل الحفظ: حساب الإجماليات تلقائيًا
 formSchema.pre("save", function (next) {
   this.appsTotal = sum(this.applications);
   this.bankTotal = sum(this.bankCollections);
@@ -68,12 +103,14 @@ formSchema.pre("save", function (next) {
   next();
 });
 
+// 🔍 تحسين البحث والفلاتر
 formSchema.index({
   "accountantRelease.status": 1,
   "branchManagerRelease.status": 1,
   "adminRelease.status": 1,
   branch: 1,
   formDate: -1,
+  status: 1
 });
 
 module.exports = mongoose.model("Form", formSchema);

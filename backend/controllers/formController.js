@@ -11,7 +11,11 @@ async function buildLinesFromTemplates(items, group) {
 
   const ids = normalized.filter(x => x.templateId).map(x => x.templateId);
   const templates = ids.length
-    ? await ReportTemplate.find({ _id: { $in: ids }, group, isActive: true }).select("_id name")
+    ? await ReportTemplate.find({
+        _id: { $in: ids },
+        group,
+        isActive: true,
+      }).select("_id name")
     : [];
   const map = new Map(templates.map(t => [String(t._id), t]));
 
@@ -26,15 +30,36 @@ async function buildLinesFromTemplates(items, group) {
     });
 }
 
-/* 🔎 Helper لإخراج الفورم بشكل موحّد */
+/* 🔎 Helper لإخراج الفورم بشكل موحّد (مأمن ضد undefined) */
 function mapOut(f) {
-  const appsTotal = typeof f.appsTotal === "number" ? f.appsTotal : (f.appsCollection || 0);
+  const appsTotal =
+    typeof f.appsTotal === "number" ? f.appsTotal : f.appsCollection || 0;
   const legacyBank = (f.bankMada || 0) + (f.bankVisa || 0);
-  const bankDyn = (f.bankCollections || []).reduce((s, x) => s + Number(x?.amount || 0), 0);
-  const bankTotal = typeof f.bankTotal === "number" ? f.bankTotal : (legacyBank + bankDyn);
-  const totalSales = typeof f.totalSales === "number"
-    ? f.totalSales
-    : (Number(f.cashCollection || 0) + appsTotal + bankTotal);
+  const bankDyn = (f.bankCollections || []).reduce(
+    (s, x) => s + Number(x?.amount || 0),
+    0
+  );
+  const bankTotal =
+    typeof f.bankTotal === "number" ? f.bankTotal : legacyBank + bankDyn;
+  const totalSales =
+    typeof f.totalSales === "number"
+      ? f.totalSales
+      : Number(f.cashCollection || 0) + appsTotal + bankTotal;
+
+  const accountantRelease =
+    f.accountantRelease && typeof f.accountantRelease === "object"
+      ? f.accountantRelease
+      : { status: "pending", note: "" };
+
+  const branchManagerRelease =
+    f.branchManagerRelease && typeof f.branchManagerRelease === "object"
+      ? f.branchManagerRelease
+      : { status: "pending", note: "" };
+
+  const adminRelease =
+    f.adminRelease && typeof f.adminRelease === "object"
+      ? f.adminRelease
+      : { status: "pending", note: "" };
 
   return {
     _id: f._id,
@@ -57,9 +82,9 @@ function mapOut(f) {
     notes: f.notes || "",
 
     status: f.status || "draft",
-    accountantRelease: f.accountantRelease || { status: "pending", note: "" },
-    branchManagerRelease: f.branchManagerRelease || { status: "pending" },
-    adminRelease: f.adminRelease || { status: "pending" },
+    accountantRelease,
+    branchManagerRelease,
+    adminRelease,
 
     adminNote: f.adminNote || "",
     receivedCash: f.receivedCash || 0,
@@ -74,17 +99,24 @@ function mapOut(f) {
 const createForm = async (req, res) => {
   try {
     const {
-      formDate, branch,
-      pettyCash = 0, purchases = 0, cashCollection = 0,
-      bankMada = 0, bankVisa = 0,
-      actualSales = 0, notes = "",
+      formDate,
+      branch,
+      pettyCash = 0,
+      purchases = 0,
+      cashCollection = 0,
+      bankMada = 0,
+      bankVisa = 0,
+      actualSales = 0,
+      notes = "",
       applications = [],
-      bankCollections = []
+      bankCollections = [],
     } = req.body;
 
     const assigned = (req.user.assignedBranches || []).map(b => b.toString());
     if (!assigned.includes(String(branch))) {
-      return res.status(403).json({ message: "Not authorized for this branch" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized for this branch" });
     }
 
     const appsLine = await buildLinesFromTemplates(applications, "applications");
@@ -94,129 +126,173 @@ const createForm = async (req, res) => {
       user: req.user._id,
       branch,
       formDate: new Date(formDate),
-
       pettyCash: Number(pettyCash) || 0,
       purchases: Number(purchases) || 0,
       cashCollection: Number(cashCollection) || 0,
       bankMada: Number(bankMada) || 0,
       bankVisa: Number(bankVisa) || 0,
-
       actualSales: Number(actualSales) || 0,
       notes,
-
       applications: appsLine,
       bankCollections: bankLine,
-
       accountantRelease: { status: "pending", note: "" },
       branchManagerRelease: { status: "pending", note: "" },
-      adminRelease: { status: "pending" },
+      adminRelease: { status: "pending", note: "" },
       status: "draft",
     });
 
     const populated = await form.populate([
       { path: "branch", select: "name" },
-      { path: "user", select: "name" }
+      { path: "user", select: "name" },
     ]);
 
-    return res.status(201).json(populated);
+    return res.status(201).json(mapOut(populated));
   } catch (error) {
     console.error("❌ createForm error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// 🟡 تحديث فورم (قبل Release المحاسب فقط)
+// 🟡 تحديث فورم
 const updateForm = async (req, res) => {
   try {
     const { id } = req.params;
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
-    if (form.accountantRelease?.status === "released") {
-      return res.status(400).json({ message: "لا يمكن تعديل التقرير بعد Release المحاسب" });
+    const isEditable =
+      form.accountantRelease?.status !== "released" ||
+      form.branchManagerRelease?.status === "rejected";
+    if (!isEditable) {
+      return res
+        .status(400)
+        .json({ message: "لا يمكن تعديل التقرير في هذه المرحلة" });
     }
 
     const {
-      pettyCash, purchases, cashCollection,
-      bankMada, bankVisa,
-      actualSales, notes,
+      pettyCash,
+      purchases,
+      cashCollection,
+      bankMada,
+      bankVisa,
+      actualSales,
+      notes,
       applications,
-      bankCollections
+      bankCollections,
     } = req.body;
 
     if (pettyCash !== undefined) form.pettyCash = Number(pettyCash) || 0;
     if (purchases !== undefined) form.purchases = Number(purchases) || 0;
-    if (cashCollection !== undefined) form.cashCollection = Number(cashCollection) || 0;
+    if (cashCollection !== undefined)
+      form.cashCollection = Number(cashCollection) || 0;
     if (bankMada !== undefined) form.bankMada = Number(bankMada) || 0;
     if (bankVisa !== undefined) form.bankVisa = Number(bankVisa) || 0;
-    if (actualSales !== undefined) form.actualSales = Number(actualSales) || 0;
+    if (actualSales !== undefined)
+      form.actualSales = Number(actualSales) || 0;
     if (notes !== undefined) form.notes = String(notes || "");
 
-    if (Array.isArray(applications)) {
-      form.applications = await buildLinesFromTemplates(applications, "applications");
-    }
-    if (Array.isArray(bankCollections)) {
-      form.bankCollections = await buildLinesFromTemplates(bankCollections, "bank");
-    }
+    if (Array.isArray(applications))
+      form.applications = await buildLinesFromTemplates(
+        applications,
+        "applications"
+      );
+    if (Array.isArray(bankCollections))
+      form.bankCollections = await buildLinesFromTemplates(
+        bankCollections,
+        "bank"
+      );
 
     await form.save();
 
     const populated = await form.populate([
       { path: "branch", select: "name" },
-      { path: "user", select: "name" }
+      { path: "user", select: "name" },
     ]);
 
-    return res.json(populated);
+    return res.json(mapOut(populated));
   } catch (error) {
     console.error("❌ updateForm error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
-
-// 🔵 Release المحاسب ✅ تم تعديلها لدعم الملاحظة
+// 🔵 Release المحاسب — نسخة نهائية آمنة ضد undefined أو body فاضي
 const releaseForm = async (req, res) => {
   try {
     const { id } = req.params;
-    const { note = "" } = req.body;
+
+    // ✅ ضمان إن req.body موجود حتى لو الريكوست مبعتهوش من الواجهة
+    const body = req.body || {};
+    const note = body.note || "";
+
+    // ✅ جلب الفورم من قاعدة البيانات
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
-    form.accountantRelease = {
-      status: "released",
-      by: req.user._id,
-      at: new Date(),
-      note
-    };
+    // ✅ تأمين الحقول ضد undefined (لو الفورم قديم أو ناقص)
+    form.accountantRelease = form.accountantRelease || { status: "pending", note: "" };
+    form.branchManagerRelease = form.branchManagerRelease || { status: "pending", note: "" };
+    form.adminRelease = form.adminRelease || { status: "pending", note: "" };
+
+    // ✅ تحديث حالة المحاسب
+    form.accountantRelease.status = "released";
+    form.accountantRelease.by = req.user?._id || null;
+    form.accountantRelease.at = new Date();
+    form.accountantRelease.note = note;
+
+    // ✅ تحديث الحالة العامة للفورم
     form.status = "released";
+
+    // ✅ حفظ البيانات بعد التعديل
     await form.save();
 
-    const populated = await form.populate([{ path: "branch", select: "name" }, { path: "user", select: "name" }]);
-    return res.json({ message: "Form released by accountant", form: mapOut(populated) });
+    // ✅ إعادة الفورم بالبيانات المعبأة
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" }
+    ]);
+
+    return res.json({
+      message: "Form released by accountant ✅",
+      form: mapOut(populated)
+    });
+
   } catch (error) {
     console.error("❌ releaseForm error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// 🔴 Reject المحاسب ✅ تم تعديلها لدعم الملاحظة
+
+
+// 🔴 Reject المحاسب
 const rejectForm = async (req, res) => {
   try {
     const { id } = req.params;
     const { note = "" } = req.body;
+
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
-    form.accountantRelease = {
-      status: "rejected",
-      by: req.user._id,
-      at: new Date(),
-      note
-    };
+    if (!form.accountantRelease || typeof form.accountantRelease !== "object") {
+      form.accountantRelease = {};
+    }
+
+    form.accountantRelease.status = "rejected";
+    form.accountantRelease.by = req.user?._id || null;
+    form.accountantRelease.at = new Date();
+    form.accountantRelease.note = String(note || "");
     form.status = "rejected";
+
     await form.save();
 
-    const populated = await form.populate([{ path: "branch", select: "name" }, { path: "user", select: "name" }]);
-    return res.json({ message: "Form rejected successfully", form: mapOut(populated) });
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" },
+    ]);
+    return res.json({
+      message: "Form rejected successfully",
+      form: mapOut(populated),
+    });
   } catch (error) {
     console.error("❌ rejectForm error:", error);
     return res.status(500).json({ message: error.message });
@@ -228,18 +304,36 @@ const branchManagerReleaseForm = async (req, res) => {
   try {
     const { id } = req.params;
     const { note = "" } = req.body;
+
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
     if (form.accountantRelease?.status !== "released") {
-      return res.status(400).json({ message: "يجب عمل Release من المحاسب أولًا" });
+      return res
+        .status(400)
+        .json({ message: "يجب عمل Release من المحاسب أولًا" });
     }
 
-    form.branchManagerRelease = { status: "released", by: req.user._id, at: new Date(), note };
+    if (!form.branchManagerRelease || typeof form.branchManagerRelease !== "object") {
+      form.branchManagerRelease = {};
+    }
+
+    form.branchManagerRelease.status = "released";
+    form.branchManagerRelease.by = req.user?._id || null;
+    form.branchManagerRelease.at = new Date();
+    form.branchManagerRelease.note = String(note || "");
+    form.status = "released";
+
     await form.save();
 
-    const populated = await form.populate([{ path: "branch", select: "name" }, { path: "user", select: "name" }]);
-    return res.json({ message: "Form released by branch manager", form: mapOut(populated) });
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" },
+    ]);
+    return res.json({
+      message: "Form released by branch manager",
+      form: mapOut(populated),
+    });
   } catch (error) {
     console.error("❌ branchManagerReleaseForm error:", error);
     return res.status(500).json({ message: error.message });
@@ -251,21 +345,119 @@ const branchManagerRejectForm = async (req, res) => {
   try {
     const { id } = req.params;
     const { note = "" } = req.body;
+
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
     if (form.accountantRelease?.status !== "released") {
-      return res.status(400).json({ message: "يجب عمل Release من المحاسب أولًا" });
+      return res
+        .status(400)
+        .json({ message: "يجب عمل Release من المحاسب أولًا" });
     }
 
-    form.branchManagerRelease = { status: "rejected", by: req.user._id, at: new Date(), note };
-    form.status = "rejected";
+    if (!note || !note.trim()) {
+      return res
+        .status(400)
+        .json({ message: "سبب الرفض مطلوب من مدير الفرع" });
+    }
+
+    if (!form.branchManagerRelease || typeof form.branchManagerRelease !== "object") {
+      form.branchManagerRelease = {};
+    }
+
+    form.branchManagerRelease.status = "rejected";
+    form.branchManagerRelease.by = req.user?._id || null;
+    form.branchManagerRelease.at = new Date();
+    form.branchManagerRelease.note = String(note || "");
+
+    form.accountantRelease.status = "pending";
+    form.accountantRelease.returnReason = note;
+    form.status = "rejected_by_manager";
+
     await form.save();
 
-    const populated = await form.populate([{ path: "branch", select: "name" }, { path: "user", select: "name" }]);
-    return res.json({ message: "Form rejected by branch manager", form: mapOut(populated) });
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" },
+    ]);
+    return res.json({
+      message: "Form rejected by branch manager and returned to accountant",
+      form: mapOut(populated),
+    });
   } catch (error) {
     console.error("❌ branchManagerRejectForm error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// 🟢 إعادة إرسال بعد رفض المدير
+const resubmitForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const form = await Form.findById(id);
+    if (!form) return res.status(404).json({ message: "Form not found" });
+
+    if (
+      form.branchManagerRelease?.status !== "rejected" &&
+      form.status !== "rejected_by_manager"
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Form is not rejected by branch manager" });
+    }
+
+    const {
+      pettyCash,
+      purchases,
+      cashCollection,
+      bankMada,
+      bankVisa,
+      actualSales,
+      notes,
+      applications,
+      bankCollections,
+    } = req.body;
+
+    if (pettyCash !== undefined) form.pettyCash = Number(pettyCash) || 0;
+    if (purchases !== undefined) form.purchases = Number(purchases) || 0;
+    if (cashCollection !== undefined)
+      form.cashCollection = Number(cashCollection) || 0;
+    if (bankMada !== undefined) form.bankMada = Number(bankMada) || 0;
+    if (bankVisa !== undefined) form.bankVisa = Number(bankVisa) || 0;
+    if (actualSales !== undefined)
+      form.actualSales = Number(actualSales) || 0;
+    if (notes !== undefined) form.notes = String(notes || "");
+
+    if (Array.isArray(applications))
+      form.applications = await buildLinesFromTemplates(
+        applications,
+        "applications"
+      );
+    if (Array.isArray(bankCollections))
+      form.bankCollections = await buildLinesFromTemplates(
+        bankCollections,
+        "bank"
+      );
+
+    form.accountantRelease.status = "released";
+    form.branchManagerRelease.status = "pending";
+    form.branchManagerRelease.note = "";
+    form.status = "resubmitted";
+    form.updatedAt = new Date();
+
+    await form.save();
+
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" },
+    ]);
+
+    return res.json({
+      message: "Form re-submitted to branch manager successfully ✅",
+      form: mapOut(populated),
+    });
+  } catch (error) {
+    console.error("❌ resubmitForm error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -275,6 +467,7 @@ const adminReleaseForm = async (req, res) => {
   try {
     const { id } = req.params;
     const { note = "", receivedCash, receivedApps, receivedBank } = req.body;
+
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
@@ -332,46 +525,66 @@ const adminRejectForm = async (req, res) => {
   }
 };
 
-// 🟡 فورمز اليوزر
+
+// 🟡 عرض فورماتي الخاصة بالمستخدم
 const getMyForms = async (req, res) => {
   try {
     const forms = await Form.find({ user: req.user._id })
       .sort({ formDate: -1 })
       .populate("branch", "name")
       .populate("user", "name");
-    return res.json(forms);
+
+    return res.json(forms.map(mapOut));
   } catch (error) {
+    console.error("❌ getMyForms error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// 🟡 Accountant review list
+// 🟠 قائمة للمراجعة (للمحاسبين)
 const listFormsForReview = async (req, res) => {
   try {
-    const { branchId, startDate, endDate, status, accountantStatus, q = "" } = req.query;
+    const {
+      branches,
+      startDate,
+      endDate,
+      statuses,
+      accountantStatus,
+      q = "",
+    } = req.query;
+
     const filters = {};
 
-    if (branchId) filters.branch = branchId;
+    // ✅ دعم اختيار أكتر من فرع
+    if (branches) {
+      const arr = Array.isArray(branches) ? branches : branches.split(",");
+      filters.branch = { $in: arr };
+    }
+
+    // ✅ التاريخ
     if (startDate || endDate) {
       filters.formDate = {};
       if (startDate) filters.formDate.$gte = new Date(startDate);
       if (endDate) filters.formDate.$lte = new Date(endDate);
     }
 
-    // ✅ دعم فلترة حالة المحاسب من الواجهة
-    const effectiveStatus = accountantStatus || status;
-    if (effectiveStatus) {
-      filters["accountantRelease.status"] = effectiveStatus;
+    // ✅ أكتر من حالة
+    const effectiveStatuses = accountantStatus || statuses;
+    if (effectiveStatuses) {
+      const arr = Array.isArray(effectiveStatuses)
+        ? effectiveStatuses
+        : effectiveStatuses.split(",");
+      filters["accountantRelease.status"] = { $in: arr };
     }
 
-    // 🔍 بحث حر في الملاحظات (اختياري)
+    // ✅ بحث بالكلمة
     const or = [];
     if (q.trim()) {
       const rx = new RegExp(q.trim(), "i");
       or.push({ notes: rx });
     }
-    const query = or.length ? { $and: [filters, { $or: or }] } : filters;
 
+    const query = or.length ? { $and: [filters, { $or: or }] } : filters;
     const forms = await Form.find(query)
       .populate("branch", "name")
       .populate("user", "name")
@@ -379,23 +592,30 @@ const listFormsForReview = async (req, res) => {
 
     return res.json(forms.map(mapOut));
   } catch (error) {
-    console.error("listFormsForReview error:", error);
+    console.error("❌ listFormsForReview error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-
-// 🔵 Admin listing
+// 🔵 عرض فورمات الأدمن
 const listFormsForAdmin = async (req, res) => {
   try {
-    const { branchId, startDate, endDate, q = "", adminStatus = "" } = req.query;
-    const filters = { "accountantRelease.status": "released", "branchManagerRelease.status": "released" };
+    const { branchId, startDate, endDate, q = "", adminStatus = "" } =
+      req.query;
+
+    const filters = {
+      "accountantRelease.status": "released",
+      "branchManagerRelease.status": "released",
+    };
+
     if (branchId) filters.branch = branchId;
+
     if (startDate || endDate) {
       filters.formDate = {};
       if (startDate) filters.formDate.$gte = new Date(startDate);
       if (endDate) filters.formDate.$lte = new Date(endDate);
     }
+
     if (adminStatus) filters["adminRelease.status"] = adminStatus;
 
     const or = [];
@@ -403,6 +623,7 @@ const listFormsForAdmin = async (req, res) => {
       const rx = new RegExp(q.trim(), "i");
       or.push({ notes: rx });
     }
+
     const query = or.length ? { $and: [filters, { $or: or }] } : filters;
 
     const forms = await Form.find(query)
@@ -412,16 +633,17 @@ const listFormsForAdmin = async (req, res) => {
 
     return res.json(forms.map(mapOut));
   } catch (error) {
-    console.error("listFormsForAdmin error:", error);
+    console.error("❌ listFormsForAdmin error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// 🟣 Branch Manager listing
+// 🟣 عرض فورمات مدير الفرع
 const listFormsForBranchManager = async (req, res) => {
   try {
     const { startDate, endDate, q = "" } = req.query;
     const filters = { "accountantRelease.status": "released" };
+
     filters.branch = { $in: req.user.assignedBranches || [] };
 
     if (startDate || endDate) {
@@ -435,6 +657,7 @@ const listFormsForBranchManager = async (req, res) => {
       const rx = new RegExp(q.trim(), "i");
       or.push({ notes: rx });
     }
+
     const query = or.length ? { $and: [filters, { $or: or }] } : filters;
 
     const forms = await Form.find(query)
@@ -444,26 +667,27 @@ const listFormsForBranchManager = async (req, res) => {
 
     return res.json(forms.map(mapOut));
   } catch (error) {
-    console.error("listFormsForBranchManager error:", error);
+    console.error("❌ listFormsForBranchManager error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// 🟣 Admin — كل الفواتير
+// ⚙️ عرض كل الفورمات (للأدمن فقط)
 const listAllForms = async (req, res) => {
   try {
-    const { branchId, userId, startDate, endDate, q = "", status = "" } = req.query;
+    const { branchId, userId, startDate, endDate, q = "", status = "" } =
+      req.query;
     const filters = {};
 
     if (branchId) filters.branch = branchId;
     if (userId) filters.user = userId;
+
     if (startDate || endDate) {
       filters.formDate = {};
       if (startDate) filters.formDate.$gte = new Date(startDate);
       if (endDate) filters.formDate.$lte = new Date(endDate);
     }
 
-    // 🟡 فلترة حسب الحالة
     if (status) {
       if (status === "pending") {
         filters["accountantRelease.status"] = { $ne: "released" };
@@ -494,12 +718,13 @@ const listAllForms = async (req, res) => {
   }
 };
 
-// 🔴 Admin — حذف فورم نهائي
+// 🔥 حذف نهائي
 const deleteFormPermanently = async (req, res) => {
   try {
     const { id } = req.params;
     const deleted = await Form.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: "Form not found" });
+
     return res.json({ message: "Form deleted permanently ✅" });
   } catch (error) {
     console.error("❌ deleteFormPermanently error:", error);
@@ -507,6 +732,7 @@ const deleteFormPermanently = async (req, res) => {
   }
 };
 
+// 🧩 تصدير شامل
 module.exports = {
   createForm,
   updateForm,
@@ -515,6 +741,7 @@ module.exports = {
   rejectForm,
   branchManagerReleaseForm,
   branchManagerRejectForm,
+  resubmitForm,
   adminReleaseForm,
   adminRejectForm,
   listFormsForReview,
@@ -522,4 +749,5 @@ module.exports = {
   listFormsForBranchManager,
   listAllForms,
   deleteFormPermanently,
+  mapOut,
 };
