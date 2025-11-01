@@ -94,17 +94,34 @@ export default function AccountantDashboard() {
   // PDF
   const modalRef = useRef(null);
 
+  // ✅ Action modal states (Approve / Reject with textarea)
+  const [actionType, setActionType] = useState(null); // 'approve' | 'reject' | null
+  const [actionNote, setActionNote] = useState("");
+  const [actionTargetId, setActionTargetId] = useState(null);
+
   /* ---------- Approve/Reject Actions ---------- */
-  const handleApprove = async (id) => {
+  // ✅ بدون prompt — بياخد الملاحظة من المودال
+  const handleApprove = async (id, note = "") => {
     try {
-      await api.patch(`/api/forms/${id}/release`);
+      await api.patch(`/api/forms/${id}/release`, { note });
       toast.success("تمت الموافقة على التقرير ✅");
+
       // تحديث المودال لو مفتوح
       if (selectedForm && selectedForm._id === id) {
-        setSelectedForm((p) =>
-          p ? { ...p, accountantRelease: { ...(p.accountantRelease || {}), status: "released" } } : p
-        );
+        setSelectedForm((prev) => {
+          if (!prev) return prev;
+          const prevAcc = prev.accountantRelease || {};
+          return {
+            ...prev,
+            accountantRelease: {
+              ...prevAcc,
+              status: "released",
+              note, // فاضية لو المستخدم ما كتبش
+            },
+          };
+        });
       }
+
       await fetchForms();
     } catch (e) {
       console.error(e);
@@ -112,26 +129,37 @@ export default function AccountantDashboard() {
     }
   };
 
-  const handleReject = async (id) => {
-    const note = prompt("أدخل سبب الرفض:");
-    if (!note) return;
+  // ❌ الرفض: السبب إجباري — بدون prompt
+  const handleReject = async (id, note = "") => {
+    const clean = String(note || "").trim();
+    if (!clean) {
+      toast.error("سبب الرفض مطلوب");
+      return;
+    }
     try {
-      await api.patch(`/api/forms/${id}/reject`, { note });
+      await api.patch(`/api/forms/${id}/reject`, { note: clean });
       toast.error("تم رفض التقرير 🚫");
+
+      // تحديث المودال لو التقرير المفتوح هو نفسه المرفوض
       if (selectedForm && selectedForm._id === id) {
-        setSelectedForm((p) =>
-          p
-            ? {
-                ...p,
-                accountantRelease: { ...(p.accountantRelease || {}), status: "rejected", note },
-              }
-            : p
-        );
+        setSelectedForm((prev) => {
+          if (!prev) return prev;
+          const prevAcc = prev.accountantRelease || {};
+          return {
+            ...prev,
+            accountantRelease: {
+              ...prevAcc,
+              status: "rejected",
+              note: clean,
+            },
+          };
+        });
       }
+
       await fetchForms();
     } catch (e) {
       console.error(e);
-      toast.error(e?.response?.data?.message || "تعذر تنفيذ الرفض");
+      toast.error(e?.response?.data?.message || "تعذر تنفيذ الرفض (تحقق من سبب الرفض)");
     }
   };
 
@@ -693,13 +721,21 @@ export default function AccountantDashboard() {
                           {showActions && (
                             <>
                               <button
-                                onClick={() => handleApprove(f._id)}
+                                onClick={() => {
+                                  setActionType("approve");
+                                  setActionTargetId(f._id);
+                                  setActionNote("");
+                                }}
                                 className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
                               >
                                 موافقة
                               </button>
                               <button
-                                onClick={() => handleReject(f._id)}
+                                onClick={() => {
+                                  setActionType("reject");
+                                  setActionTargetId(f._id);
+                                  setActionNote("");
+                                }}
                                 className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700"
                               >
                                 رفض
@@ -1136,13 +1172,21 @@ export default function AccountantDashboard() {
                 {selectedForm.accountantRelease?.status === "pending" && (
                   <div className="flex justify-end gap-3 mt-4" data-html2canvas-ignore>
                     <button
-                      onClick={() => handleApprove(selectedForm._id)}
+                      onClick={() => {
+                        setActionType("approve");
+                        setActionTargetId(selectedForm._id);
+                        setActionNote("");
+                      }}
                       className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
                     >
                       موافقة
                     </button>
                     <button
-                      onClick={() => handleReject(selectedForm._id)}
+                      onClick={() => {
+                        setActionType("reject");
+                        setActionTargetId(selectedForm._id);
+                        setActionNote("");
+                      }}
                       className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
                     >
                       رفض
@@ -1150,6 +1194,89 @@ export default function AccountantDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Action Modal: Approve / Reject with Textarea ===== */}
+      {actionType && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-3">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border">
+            {/* Header */}
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h4 className="font-bold text-base">
+                {actionType === "approve" ? "تأكيد الموافقة" : "تأكيد الرفض"}
+              </h4>
+              <button
+                onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
+                className="p-1 rounded-lg hover:bg-gray-100"
+                title="إغلاق"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-2">
+              <div className="text-sm text-gray-600">
+                {actionType === "approve"
+                  ? "يمكنك كتابة ملاحظة للموافقة (اختياري)."
+                  : "من فضلك اكتب سبب الرفض (إجباري)."}
+              </div>
+              <textarea
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                placeholder={actionType === "approve" ? "أضف ملاحظة (اختياري)..." : "سبب الرفض (إجباري)..."}
+                className="w-full border rounded-xl p-3 text-sm min-h-[110px] focus:ring-2 focus:ring-indigo-300 outline-none"
+              />
+              {actionType === "reject" && !String(actionNote || "").trim() && (
+                <div className="text-xs text-rose-600">سبب الرفض مطلوب.</div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
+              <button
+                onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
+                className="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm"
+              >
+                إلغاء
+              </button>
+              {actionType === "approve" ? (
+                <button
+                  onClick={async () => {
+                    const id = actionTargetId;
+                    const note = actionNote;
+                    await handleApprove(id, note);
+                    setActionType(null);
+                    setActionNote("");
+                    setActionTargetId(null);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
+                >
+                  تأكيد الموافقة
+                </button>
+              ) : (
+                <button
+                  disabled={!String(actionNote || "").trim()}
+                  onClick={async () => {
+                    const id = actionTargetId;
+                    const note = actionNote;
+                    await handleReject(id, note);
+                    setActionType(null);
+                    setActionNote("");
+                    setActionTargetId(null);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-white text-sm ${
+                    String(actionNote || "").trim()
+                      ? "bg-rose-600 hover:bg-rose-700"
+                      : "bg-rose-400 cursor-not-allowed"
+                  }`}
+                >
+                  تأكيد الرفض
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1314,7 +1441,7 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full bg-white rounded-طxl shadow-lg border p-2">
+        <div className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-lg border p-2">
           <div className="max-h-56 overflow-auto pr-1">
             {(options || []).map((opt) => {
               const name = opt?.name || "";
