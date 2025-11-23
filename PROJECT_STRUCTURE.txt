@@ -1,0 +1,126 @@
+📄 .gitignore
+📁 backend
+   📄 .env
+   📄 cd
+   📁 config
+      📄 db.js
+   📁 controllers
+      📄 authController.js
+      📄 branchController.js
+      📄 documentController.js
+      📄 formController.js
+      📄 reportController.js
+      📄 reviewController.js
+      📄 templateController.js
+      📄 userController.js
+   📁 middleware
+      📄 authMiddleware.js
+      📄 roleMiddleware.js
+      📄 uploadMiddleware.js
+   📁 models
+      📄 Branch.js
+      📄 Document.js
+      📄 Form.js
+      📄 ReportTemplate.js
+      📄 User.js
+   📄 npm
+   📄 npx
+   📄 package-lock.json
+   📄 package.json
+   📁 routes
+      📄 authRoutes.js
+      📄 branchRoutes.js
+      📄 documentRoutes.js
+      📄 formRoutes.js
+      📄 reportRoutes.js
+      📄 reviewRoutes.js
+      📄 templateRoutes.js
+      📄 userRoutes.js
+   📄 server.js
+   📁 uploads
+      📄 1756394579339-Capture.JPG
+      📄 1756395033842-images (5).jpeg
+      📄 1756395283760-Capture.JPG
+      📄 1756395468743-WhatsApp Image 2025-08-16 at 10.47.20_4b535ec5.jpg
+      📄 1756395681877-8adeff1ef6031853fc12289b0ef8acb0.jpg
+      📄 1756409966036-434540459_7815885661754700_8463127119885072794_n.jpg
+      📄 1756680199724-Ø§ÙØ§Ø³ÙØ§Ù Ø§ÙØ§Ø¬ØªÙØ§Ø¹Ù.JPG ØªÙØ¯ÙÙ.JPG
+      📄 1757154673916-Capture.JPG
+      📄 1757154674307-WhatsApp Image 2025-09-01 at 01.35.45_ab246aa2.jpg
+      📄 1757154676169-Capture.JPG
+      📄 1757154676543-WhatsApp Image 2025-09-01 at 01.35.45_ab246aa2.jpg
+      📄 1757162853797-Capture.JPG
+      📄 1757162854143-Capture 2.JPG
+      📄 1757185766748-Ø§ÙØ± ØªÙØ±ÙØ¯ Ø¨Ø§ÙÙ Ø¬Ø±ÙÙ.pdf
+      📄 1757185767627-Capture.JPG
+      📄 1758529506295-Capture.JPG
+      📄 1759267255250-IMG_0008.jpg
+      📄 1759267256117-IMG_0015.jpg
+      📄 1759267256993-IMG_0121.jpg
+      📄 1759357587225-IMG_0167.jpg
+      📄 1759358593223-1759358585664430026398225102209.jpg
+      📄 1759358822962-17593588070181168116724034225115.jpg
+      📄 1759663267474-WhatsApp Image 2025-10-04 at 13.55.18_73803f7d.jpg
+      📄 1759663348111-WhatsApp Image 2025-10-04 at 13.55.18_73803f7d.jpg
+      📄 1759663932197-WhatsApp Image 2025-10-02 at 11.09.56_82b2a045.jpg
+      📄 1759664008971-WhatsApp Image 2025-10-02 at 11.09.56_82b2a045.jpg
+      📄 1760033991058-blob.jpg
+      📄 1761582962393-blob.jpg
+      📄 1761582962394-blob.jpg
+      📄 1761583335566-blob.jpg
+      📄 1761583335725-blob.jpg
+      📄 1761583335880-blob.jpg
+      📄 1761583335881-blob.jpg
+      📄 1761589163643-blob.jpg
+      📄 1761589163890-blob.jpg
+      📄 1761589164042-blob.jpg
+      📄 1761589164044-blob.jpg
+      📄 1761589448427-blob.jpg
+      📄 1761589935186-blob.jpg
+      📄 1761589935380-blob.jpg
+      📄 1761589935520-blob.jpg
+      📄 1761589935521-blob.jpg
+      📄 1761589935522-blob.jpg
+📁 frontend
+   📄 .env
+   📄 .gitgit
+   📄 .gitignore
+   📄 cd
+   📄 git
+   📄 main
+   📄 package-lock.json
+   📄 package.json
+   📄 postcss.config.js
+   📁 public
+      📄 favicon.ico
+      📄 index.html
+      📄 logo192.png
+      📄 logo512.png
+      📄 manifest.json
+      📄 robots.txt
+   📄 README.md
+   📁 src
+      📄 App.css
+      📄 App.js
+      📄 App.test.js
+      📁 components
+         📁 ui
+            📄 button.jsx
+      📁 hooks
+         📄 useApi.js
+      📄 index.css
+      📄 index.js
+      📄 logo.svg
+      📁 pages
+         📄 AccountantDashboard.js
+         📄 AdminDashboard.js
+         📄 BranchManagerDashboard.js
+         📄 FormViewPage.js
+         📄 Login.js
+         📄 UserDashboard.js
+      📄 ProtectedRoute.js
+      📄 reportWebVitals.js
+      📄 setupTests.js
+   📄 tailwind.config.js
+📄 generate-structure.js
+📄 server.txt

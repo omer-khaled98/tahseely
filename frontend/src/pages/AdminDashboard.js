@@ -7,6 +7,7 @@ import {
   Filter, Search, CheckCircle2, XCircle, Clock3, FileText, Pencil, Trash2, Plus, Download
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AdminSummary from "../pages/AdminSummary";
 
 // ===== Chart.js setup =====
 import {
@@ -112,8 +113,13 @@ const api = useApi();
             <NavBtn icon={<UsersIcon size={16} />} label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
             <NavBtn icon={<Building2 size={16} />} label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
             <NavBtn icon={<Layers3 size={16} />} label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
-            <NavBtn icon={<FileText size={16} />} label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />
+            {/*<NavBtn icon={<FileText size={16} />} label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />*/}
             <NavBtn icon={<Layers3 size={16} />} label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} />
+            <NavBtn icon={<Layers3 size={16} />} 
+  label="ملخصات الإدارة" 
+  active={tab==="adminSummary"} 
+  onClick={()=>setTab("adminSummary")} />
+
           </nav>
 
           <div className="flex items-center gap-4">
@@ -131,7 +137,7 @@ const api = useApi();
           <SmallNavBtn label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
           <SmallNavBtn label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
           <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
-          <SmallNavBtn label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />
+          {/*<SmallNavBtn label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />*/}
           <SmallNavBtn label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} /> {/* ✅ أضف السطر ده */}
         </div>
       </header>
@@ -145,6 +151,8 @@ const api = useApi();
         {tab === "templates" && <TemplatesPage api={api} isAdmin={isAdmin} />}
         {tab === "adminReports" && <AdminReports api={api} isAdmin={isAdmin} />}
         {tab === "allForms" && <AllFormsPage api={api} isAdmin={isAdmin} />}
+        {tab === "adminSummary" && <AdminSummary api={api} isAdmin={isAdmin} />}
+
       </main>
     </div>
   );
@@ -247,7 +255,13 @@ function AdminReceipts({ api, isAdmin }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [filters, setFilters] = useState({ branchId: "", startDate: "", endDate: "", q: "", adminStatus: "pending" });
+  const [filters, setFilters] = useState({
+    branchId: "",
+    startDate: "",
+    endDate: "",
+    q: "",
+    adminStatus: "pending"
+  });
 
   // modal
   const [activeForm, setActiveForm] = useState(null);
@@ -257,14 +271,58 @@ function AdminReceipts({ api, isAdmin }) {
   const [recvBank, setRecvBank] = useState("");
   const [actLoading, setActLoading] = useState(false);
 
-  useEffect(() => { (async () => { try { const res = await api.get("/api/branches"); setBranches(res.data || []); } catch (e) { console.error(e); } })(); }, [api]);
+  // =======================================================
+  // 🟢 Attachments States
+  // =======================================================
+  const [attLoading, setAttLoading] = useState(false);
+  const [attachments, setAttachments] = useState([]);
 
-  useEffect(()=>{ console.log("[Receipts] Filters changed:", filters); }, [filters]);
+  // جلب المرفقات من API
+  const loadAttachments = async (formId) => {
+    try {
+      setAttLoading(true);
+      console.log("[ATT] Loading for form:", formId);
 
+      const res = await api.get(`/api/documents/${formId}`);
+
+      console.log("[ATT] Result:", res.data);
+      setAttachments(res.data || []);
+    } catch (err) {
+      console.error("[ATT] Error loading:", err);
+      setAttachments([]);
+    } finally {
+      setAttLoading(false);
+    }
+  };
+
+  // =======================================================
+  // Load Branches
+  // =======================================================
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/api/branches");
+        setBranches(res.data || []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [api]);
+
+  useEffect(() => {
+    console.log("[Receipts] Filters changed:", filters);
+  }, [filters]);
+
+  // =======================================================
+  // Load Forms
+  // =======================================================
   const fetchForms = async () => {
-    setLoading(true); setErrorMsg("");
+    setLoading(true);
+    setErrorMsg("");
+
     try {
       const params = { accountantStatus: "released" };
+
       if (filters.adminStatus) params.adminStatus = filters.adminStatus;
       if (filters.branchId) params.branchId = filters.branchId;
       if (filters.startDate) params.startDate = filters.startDate;
@@ -275,26 +333,78 @@ function AdminReceipts({ api, isAdmin }) {
 
       const res = await api.get("/api/forms/admin", { params });
 
-      console.log("[Receipts] Result length:", Array.isArray(res.data) ? res.data.length : null);
+      console.log(
+        "[Receipts] Result length:",
+        Array.isArray(res.data) ? res.data.length : null
+      );
+
       if (Array.isArray(res.data) && res.data.length) {
         console.log("[Receipts] First row sample:", res.data[0]);
       }
 
       setForms(res.data || []);
     } catch (e) {
-      console.log("[Receipts] Error:", e?.response?.status, e?.response?.data || e?.message);
+      console.log(
+        "[Receipts] Error:",
+        e?.response?.status,
+        e?.response?.data || e?.message
+      );
       setErrorMsg(e?.response?.data?.message || "تعذّر تحميل التقارير");
       setForms([]);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(() => { fetchForms(); }, [/* eslint-disable-line */ api, filters.branchId, filters.startDate, filters.endDate, filters.q, filters.adminStatus]);
 
-  const counts = useMemo(() => { const c = { total: forms.length, pending: 0, released: 0, rejected: 0 }; for (const f of forms) { if (f.adminStatus === "released") c.released++; else if (f.adminStatus === "rejected") c.rejected++; else c.pending++; } return c; }, [forms]);
-  const totals = useMemo(() => forms.reduce((acc, f) => { const cash = Number(f?.cashCollection || 0); const apps = appsWithFallback(f); const bank = bankWithFallback(f); acc.cash += cash; acc.apps += apps; acc.bank += bank; acc.total += cash + apps + bank; return acc; }, { cash: 0, apps: 0, bank: 0, total: 0 }), [forms]);
+  useEffect(() => {
+    fetchForms();
+  }, [
+    api,
+    filters.branchId,
+    filters.startDate,
+    filters.endDate,
+    filters.q,
+    filters.adminStatus
+  ]);
 
-  // === استلام الإدمن مع Fallback ذكي لو الحقول فاضية
+  // =======================================================
+  // Counters & Totals
+  // =======================================================
+  const counts = useMemo(() => {
+    const c = { total: forms.length, pending: 0, released: 0, rejected: 0 };
+    for (const f of forms) {
+      if (f.adminStatus === "released") c.released++;
+      else if (f.adminStatus === "rejected") c.rejected++;
+      else c.pending++;
+    }
+    return c;
+  }, [forms]);
+
+  const totals = useMemo(
+    () =>
+      forms.reduce(
+        (acc, f) => {
+          const cash = Number(f?.cashCollection || 0);
+          const apps = appsWithFallback(f);
+          const bank = bankWithFallback(f);
+          acc.cash += cash;
+          acc.apps += apps;
+          acc.bank += bank;
+          acc.total += cash + apps + bank;
+          return acc;
+        },
+        { cash: 0, apps: 0, bank: 0, total: 0 }
+      ),
+    [forms]
+  );
+
+  // =======================================================
+  // Admin Release
+  // =======================================================
   const doAdminRelease = async () => {
-    if (!activeForm) return; if (!isAdmin) return toast.error("صلاحية أدمن فقط");
+    if (!activeForm) return;
+    if (!isAdmin) return toast.error("صلاحية أدمن فقط");
+
     setActLoading(true);
     try {
       const fallbackCash = Number(activeForm?.cashCollection ?? 0);
@@ -303,73 +413,202 @@ function AdminReceipts({ api, isAdmin }) {
 
       const payload = {
         note: note?.trim() || "",
-        receivedCash: recvCash === "" ? fallbackCash : Number(recvCash),
-        receivedApps: recvApps === "" ? fallbackApps : Number(recvApps),
-        receivedBank: recvBank === "" ? fallbackBank : Number(recvBank),
+        receivedCash:
+          recvCash === "" ? fallbackCash : Number(recvCash || 0),
+        receivedApps:
+          recvApps === "" ? fallbackApps : Number(recvApps || 0),
+        receivedBank:
+          recvBank === "" ? fallbackBank : Number(recvBank || 0)
       };
 
-      console.log("[Receipts] AdminRelease payload =>", payload, "for form", activeForm?._id);
+      console.log(
+        "[Receipts] AdminRelease payload =>",
+        payload,
+        "for form",
+        activeForm?._id
+      );
 
-      await api.patch(`/api/forms/${activeForm._id}/admin-release`, payload);
-      setActiveForm(null); setNote(""); setRecvCash(""); setRecvApps(""); setRecvBank("");
+      await api.patch(
+        `/api/forms/${activeForm._id}/admin-release`,
+        payload
+      );
+
+      setActiveForm(null);
+      setNote("");
+      setRecvCash("");
+      setRecvApps("");
+      setRecvBank("");
       fetchForms();
       toast.success("تم الاستلام بنجاح ✨");
-    } catch (e) { console.error("[Receipts] AdminRelease error:", e?.response?.data || e?.message); toast.error(e?.response?.data?.message || "فشل الاستلام"); }
-    finally { setActLoading(false); }
+    } catch (e) {
+      console.error(
+        "[Receipts] AdminRelease error:",
+        e?.response?.data || e?.message
+      );
+      toast.error(e?.response?.data?.message || "فشل الاستلام");
+    } finally {
+      setActLoading(false);
+    }
   };
 
+  // =======================================================
+  // Admin Reject
+  // =======================================================
   const doAdminReject = async () => {
-    if (!activeForm) return; if (!isAdmin) return toast.error("صلاحية أدمن فقط");
+    if (!activeForm) return;
+    if (!isAdmin) return toast.error("صلاحية أدمن فقط");
     if (!window.confirm("تأكيد رفض التقرير؟")) return;
+
     setActLoading(true);
     try {
-      console.log("[Receipts] AdminReject", { id: activeForm?._id, note });
-      await api.patch(`/api/forms/${activeForm._id}/admin-reject`, { note: note?.trim() || "" });
-      setActiveForm(null); setNote(""); setRecvCash(""); setRecvApps(""); setRecvBank("");
+      console.log("[Receipts] AdminReject", {
+        id: activeForm?._id,
+        note
+      });
+
+      await api.patch(
+        `/api/forms/${activeForm._id}/admin-reject`,
+        { note: note?.trim() || "" }
+      );
+
+      setActiveForm(null);
+      setNote("");
+      setRecvCash("");
+      setRecvApps("");
+      setRecvBank("");
       fetchForms();
       toast.success("تم الرفض");
-    } catch (e) { console.error("[Receipts] AdminReject error:", e?.response?.data || e?.message); toast.error(e?.response?.data?.message || "فشل الرفض"); }
-    finally { setActLoading(false); }
+    } catch (e) {
+      console.error(
+        "[Receipts] AdminReject error:",
+        e?.response?.data || e?.message
+      );
+      toast.error(e?.response?.data?.message || "فشل الرفض");
+    } finally {
+      setActLoading(false);
+    }
   };
+
+  // =======================================================
+  // UI
+  // =======================================================
 
   return (
     <>
-      {/* Filters */}
+      {/* ================= Filters ================= */}
       <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-6">
-        <div className="flex items-center gap-2 mb-3 text-gray-600"><Filter size={16} /><b>فلاتر تحصيلات المحاسب</b></div>
+        <div className="flex items-center gap-2 mb-3 text-gray-600">
+          <Filter size={16} />
+          <b>فلاتر تحصيلات المحاسب</b>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <div className="md:col-span-2 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
             <Search size={16} className="text-gray-400" />
-            <input value={filters.q} onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))} className="outline-none w-full text-sm" placeholder="بحث (ملاحظات/مستخدم/فرع)…" />
+            <input
+              value={filters.q}
+              onChange={(e) =>
+                setFilters((p) => ({ ...p, q: e.target.value }))
+              }
+              className="outline-none w-full text-sm"
+              placeholder="بحث (ملاحظات/مستخدم/فرع)…"
+            />
           </div>
-          <select value={filters.branchId} onChange={(e) => setFilters((p)=>({ ...p, branchId: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm">
+
+          <select
+            value={filters.branchId}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, branchId: e.target.value }))
+            }
+            className="border rounded-xl px-3 py-2 bg-white text-sm"
+          >
             <option value="">كل الفروع</option>
-            {branches.map((b)=><option key={b._id} value={b._id}>{b.name}</option>)}
+            {branches.map((b) => (
+              <option key={b._id} value={b._id}>
+                {b.name}
+              </option>
+            ))}
           </select>
-          <select value={filters.adminStatus} onChange={(e)=> setFilters((p)=>({ ...p, adminStatus: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm">
+
+          <select
+            value={filters.adminStatus}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, adminStatus: e.target.value }))
+            }
+            className="border rounded-xl px-3 py-2 bg-white text-sm"
+          >
             <option value="pending">في انتظار الإدمن</option>
             <option value="released">تم استلامها</option>
             <option value="rejected">مرفوضة</option>
             <option value="">كل الحالات (إدمن)</option>
           </select>
-          <input type="date" value={filters.startDate} onChange={(e)=> setFilters((p)=>({ ...p, startDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
-          <input type="date" value={filters.endDate} onChange={(e)=> setFilters((p)=>({ ...p, endDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
-          <div className="md:col-span-6 flex justify-end"><button onClick={fetchForms} className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95">تحديث</button></div>
+
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, startDate: e.target.value }))
+            }
+            className="border rounded-xl px-3 py-2 bg-white text-sm"
+          />
+
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, endDate: e.target.value }))
+            }
+            className="border rounded-xl px-3 py-2 bg-white text-sm"
+          />
+
+          <div className="md:col-span-6 flex justify-end">
+            <button
+              onClick={fetchForms}
+              className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95"
+            >
+              تحديث
+            </button>
+          </div>
         </div>
-        {errorMsg && <div className="mt-3 text-red-600">{errorMsg}</div>}
+
+        {errorMsg && (
+          <div className="mt-3 text-red-600">{errorMsg}</div>
+        )}
       </section>
 
-      {/* Counters */}
+      {/* ================= Counters ================= */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <KpiCard icon={<FileText />} label="إجمالي المعروض" value={counts.total} tint="from-sky-500 to-indigo-500" />
-        <KpiCard icon={<Clock3 />} label="Pending (إدمن)" value={counts.pending} tint="from-amber-500 to-orange-500" />
-        <KpiCard icon={<CheckCircle2 />} label="Released (إدمن)" value={counts.released} tint="from-emerald-500 to-teal-500" />
-        <KpiCard icon={<XCircle />} label="Rejected (إدمن)" value={counts.rejected} tint="from-rose-500 to-pink-500" />
+        <KpiCard
+          icon={<FileText />}
+          label="إجمالي المعروض"
+          value={counts.total}
+          tint="from-sky-500 to-indigo-500"
+        />
+        <KpiCard
+          icon={<Clock3 />}
+          label="Pending (إدمن)"
+          value={counts.pending}
+          tint="from-amber-500 to-orange-500"
+        />
+        <KpiCard
+          icon={<CheckCircle2 />}
+          label="Released (إدمن)"
+          value={counts.released}
+          tint="from-emerald-500 to-teal-500"
+        />
+        <KpiCard
+          icon={<XCircle />}
+          label="Rejected (إدمن)"
+          value={counts.rejected}
+          tint="from-rose-500 to-pink-500"
+        />
       </section>
 
-      {/* Totals (المبلّغ — يخص شاشة التحصيلات فقط) */}
+      {/* ================= Totals ================= */}
       <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-6">
-        <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
+        <h3 className="text-md font-semibold mb-3">
+          إجماليات النتائج المعروضة
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
           <MiniTotal title="نقدي" value={currency(totals.cash)} />
           <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
@@ -378,7 +617,7 @@ function AdminReceipts({ api, isAdmin }) {
         </div>
       </section>
 
-      {/* Table */}
+      {/* ================= Table ================= */}
       <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -395,29 +634,71 @@ function AdminReceipts({ api, isAdmin }) {
                 <th className="p-2 border">إجراءات</th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="p-4 text-center">جاري التحميل…</td></tr>
+                <tr>
+                  <td colSpan={9} className="p-4 text-center">
+                    جاري التحميل…
+                  </td>
+                </tr>
               ) : forms.length ? (
-                forms.map((f)=>(
+                forms.map((f) => (
                   <tr key={f._id} className="text-center">
-                    <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
-                    <td className="p-2 border">{f.branch?.name || "-"}</td>
-                    <td className="p-2 border">{f.user?.name || "-"}</td>
-                    <td className="p-2 border">{currency(f.cashCollection)}</td>
-                    <td className="p-2 border">{currency(appsWithFallback(f))}</td>
-                    <td className="p-2 border">{currency(bankWithFallback(f))}</td>
-                    <td className="p-2 border">{currency(rowTotal(f))}</td>
-                    <td className="p-2 border">{f.adminStatus === "released" ? "Released" : f.adminStatus === "rejected" ? "Rejected" : "Pending"}</td>
+                    <td className="p-2 border">
+                      {formatDateOnly(f.formDate)}
+                    </td>
+                    <td className="p-2 border">
+                      {f.branch?.name || "-"}
+                    </td>
+                    <td className="p-2 border">
+                      {f.user?.name || "-"}
+                    </td>
+                    <td className="p-2 border">
+                      {currency(f.cashCollection)}
+                    </td>
+                    <td className="p-2 border">
+                      {currency(appsWithFallback(f))}
+                    </td>
+                    <td className="p-2 border">
+                      {currency(bankWithFallback(f))}
+                    </td>
+                    <td className="p-2 border">
+                      {currency(rowTotal(f))}
+                    </td>
+                    <td className="p-2 border">
+                      {f.adminStatus === "released"
+                        ? "Released"
+                        : f.adminStatus === "rejected"
+                        ? "Rejected"
+                        : "Pending"}
+                    </td>
                     <td className="p-2 border space-y-1">
                       <button
-                        onClick={()=>{
-                          console.log("[Receipts] Open modal for form:", f._id);
+                        onClick={() => {
+                          console.log(
+                            "[Receipts] Open modal for form:",
+                            f._id
+                          );
                           setActiveForm(f);
+
+                          // 🟢 تحميل المرفقات عند فتح المودال
+                          loadAttachments(f._id);
+
                           setNote("");
-                          setRecvCash(String(Number(f?.cashCollection || 0)));
-                          setRecvApps(String(Number(appsWithFallback(f) || 0)));
-                          setRecvBank(String(Number(bankWithFallback(f) || 0)));
+                          setRecvCash(
+                            String(Number(f?.cashCollection || 0))
+                          );
+                          setRecvApps(
+                            String(
+                              Number(appsWithFallback(f) || 0)
+                            )
+                          );
+                          setRecvBank(
+                            String(
+                              Number(bankWithFallback(f) || 0)
+                            )
+                          );
                         }}
                         className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
                       >
@@ -427,52 +708,259 @@ function AdminReceipts({ api, isAdmin }) {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={9} className="p-4 text-center text-gray-500">لا توجد تقارير</td></tr>
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="p-4 text-center text-gray-500"
+                  >
+                    لا توجد تقارير
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
-      
 
-      {/* Modal */}
-      {activeForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">استلام تحصيلات — {activeForm.branch?.name || "-"} — {formatDateOnly(activeForm.formDate)}</h3>
-              <button onClick={()=> { console.log("[Receipts] Close modal"); setActiveForm(null); }} className="border px-3 py-1 rounded-xl hover:bg-gray-50">إغلاق</button>
-            </div>
+      {/* =======================================================
+          ======================== MODAL ========================
+          ======================================================= */}
+{activeForm && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6">
 
-            <div className="grid md:grid-cols-3 gap-3 mb-4">
-              <MiniBox label="نقدي (المبلّغ)" value={currency(activeForm.cashCollection)} />
-              <MiniBox label="تطبيقات (المبلّغ)" value={currency(appsWithFallback(activeForm))} />
-              <MiniBox label="بنك (المبلّغ)" value={currency(bankWithFallback(activeForm))} />
-            </div>
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 z-10 border-b">
+        <h3 className="text-lg font-bold">
+          تفاصيل التقرير — {activeForm.branch?.name} — {formatDateOnly(activeForm.formDate)}
+        </h3>
+        <button
+          onClick={() => setActiveForm(null)}
+          className="border px-3 py-1 rounded-xl hover:bg-gray-50"
+        >
+          إغلاق
+        </button>
+      </div>
 
-            <div className="grid md:grid-cols-3 gap-3 mb-4">
-              <div><label className="text-sm text-gray-600">نقدي المستلم فعلاً (اختياري)</label><input type="number" className="border rounded-xl p-2 w-full" value={recvCash} onChange={(e)=> setRecvCash(e.target.value)} /></div>
-              <div><label className="text-sm text-gray-600">تطبيقات المستلم فعلاً (اختياري)</label><input type="number" className="border rounded-xl p-2 w-full" value={recvApps} onChange={(e)=> setRecvApps(e.target.value)} /></div>
-              <div><label className="text-sm text-gray-600">بنك المستلم فعلاً (اختياري)</label><input type="number" className="border rounded-xl p-2 w-full" value={recvBank} onChange={(e)=> setRecvBank(e.target.value)} /></div>
-            </div>
+      {/* SUMMARY */}
+      <h4 className="font-bold text-md mb-3">الملخص</h4>
+      <div className="grid md:grid-cols-3 gap-3 mb-6">
+        <MiniBox label="العهدة" value={currency(activeForm.pettyCash || 0)} />
 
-            <div className="mb-4"><label className="text-sm text-gray-600">ملاحظات الإدمن</label><textarea className="border rounded-xl p-2 w-full min-h-24" value={note} onChange={(e)=> setNote(e.target.value)} placeholder="اكتب ملاحظاتك هنا…" /></div>
+        <MiniBox label="المشتريات" value={currency(activeForm.purchases || 0)} />
 
-            <div className="flex justify-end gap-2">
-              {isAdmin && (
-                <>
-                  <button disabled={actLoading} onClick={doAdminReject} className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 disabled:opacity-60">رفض</button>
-                  <button disabled={actLoading} onClick={doAdminRelease} className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60">استلام (Release)</button>
-                </>
-              )}
-              {!isAdmin && <div className="text-sm text-gray-500">إجراءات الاستلام/الرفض تتطلب صلاحية أدمن</div>}
-            </div>
-          </div>
+        <MiniBox label="النقدي" value={currency(activeForm.cashCollection || 0)} />
+
+        <MiniBox label="التطبيقات (إجمالي)" value={currency(appsWithFallback(activeForm))} />
+
+        <MiniBox label="البنك (إجمالي)" value={currency(bankWithFallback(activeForm))} />
+
+        <MiniBox
+          label="إجمالي بدون العهدة"
+          value={currency(
+            Number(activeForm.cashCollection || 0) +
+            Number(appsWithFallback(activeForm) || 0) +
+            Number(bankWithFallback(activeForm) || 0) +
+            Number(activeForm.purchases || 0)
+          )}
+        />
+      </div>
+
+      {/* APPS DETAILS */}
+      <h4 className="font-bold text-md mb-2">تفاصيل التطبيقات</h4>
+      <table className="min-w-full text-sm border mb-4">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">الاسم</th>
+            <th className="p-2 border">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(activeForm.applications || []).map((a, i) => (
+            <tr key={i} className="text-center">
+              <td className="p-2 border">{a.name}</td>
+              <td className="p-2 border">{currency(a.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="text-right mb-6 font-semibold">
+        إجمالي التطبيقات: <span className="text-blue-600">{currency(appsWithFallback(activeForm))}</span>
+      </div>
+
+      {/* BANK DETAILS */}
+      <h4 className="font-bold text-md mb-2">تفاصيل البنك</h4>
+      <table className="min-w-full text-sm border mb-4">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">النوع</th>
+            <th className="p-2 border">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(activeForm.bankCollections || []).map((b, i) => (
+            <tr key={i} className="text-center">
+              <td className="p-2 border">{b.name}</td>
+              <td className="p-2 border">{currency(b.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="text-right mb-6 font-semibold">
+        إجمالي البنك: <span className="text-blue-600">{currency(bankWithFallback(activeForm))}</span>
+      </div>
+
+      {/* ATTACHMENTS */}
+      <div className="mb-5 mt-6">
+        <h4 className="font-semibold mb-2">المرفقات</h4>
+
+        {attLoading ? (
+          <p className="text-gray-500 text-sm">جاري التحميل…</p>
+        ) : !attachments.length ? (
+          <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
+        ) : (
+          <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {attachments.map((att) => {
+              const url = att.fileUrl?.startsWith("http")
+                ? att.fileUrl
+                : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl}`;
+
+              const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(att.fileUrl);
+
+              return (
+                <li key={att._id} className="border rounded-xl bg-gray-50 overflow-hidden">
+                  <a href={url} target="_blank" rel="noopener noreferrer">
+                    {isImg ? (
+                      <img src={url} alt="" className="w-full h-32 object-cover rounded" />
+                    ) : (
+                      <div className="p-3 text-center text-sm truncate">{att.fileUrl}</div>
+                    )}
+                  </a>
+
+                  <button
+                    onClick={() => window.open(url, "_blank")}
+                    className="mt-2 mx-2 mb-2 w-[calc(100%-1rem)] rounded-xl bg-gray-900 text-white px-2 py-1 text-sm"
+                  >
+                    فتح
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* ===== NOTES SECTION ===== */}
+
+      {/* USER NOTE */}
+      <div className="mb-4 bg-gray-50 p-3 rounded-xl">
+        <div className="flex justify-between mb-1">
+          <p className="text-sm text-gray-600">ملاحظة المستخدم:</p>
+          <p className="text-sm text-gray-500">{activeForm.user?.name || "—"}</p>
         </div>
-      )}
+        <p className="font-semibold">{activeForm.notes || "—"}</p>
+      </div>
+
+      {/* ACCOUNTANT NOTE */}
+      <div className="mb-4 bg-gray-50 p-3 rounded-xl">
+        <div className="flex justify-between mb-1">
+          <p className="text-sm text-gray-600">ملاحظات المحاسب:</p>
+          <p className="text-sm text-gray-500">
+            {activeForm.accountantRelease?.by?.name || "—"}
+          </p>
+        </div>
+        <p className="font-semibold">
+          {activeForm.accountantRelease?.note || "—"}
+        </p>
+      </div>
+
+      {/* BRANCH MANAGER NOTE */}
+      <div className="mb-6 bg-gray-50 p-3 rounded-xl">
+        <div className="flex justify-between mb-1">
+          <p className="text-sm text-gray-600">ملاحظات مدير الفرع:</p>
+          <p className="text-sm text-gray-500">
+            {activeForm.branchManagerRelease?.by?.name || "—"}
+          </p>
+        </div>
+        <p className="font-semibold">
+          {activeForm.branchManagerRelease?.note || "—"}
+        </p>
+      </div>
+
+      {/* ADMIN INPUT */}
+      <h4 className="font-bold text-md mb-3">إدخال بيانات الإدمن</h4>
+
+      <div className="grid md:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="text-sm text-gray-600">نقدي المستلم فعلاً</label>
+          <input
+            type="number"
+            className="border rounded-xl p-2 w-full"
+            value={recvCash}
+            onChange={(e) => setRecvCash(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm text-gray-600">تطبيقات المستلم فعلاً</label>
+          <input
+            type="number"
+            className="border rounded-xl p-2 w-full"
+            value={recvApps}
+            onChange={(e) => setRecvApps(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm text-gray-600">بنك المستلم فعلاً</label>
+          <input
+            type="number"
+            className="border rounded-xl p-2 w-full"
+            value={recvBank}
+            onChange={(e) => setRecvBank(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <label className="text-sm text-gray-600">ملاحظات الإدمن</label>
+        <textarea
+          className="border rounded-xl p-2 w-full min-h-24"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </div>
+
+      {/* ACTION BUTTONS */}
+      <div className="flex justify-end gap-2 sticky bottom-0 pt-3 bg-white z-10 border-t">
+        <button
+          disabled={actLoading}
+          onClick={doAdminReject}
+          className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700"
+        >
+          رفض
+        </button>
+
+        <button
+          disabled={actLoading}
+          onClick={doAdminRelease}
+          className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+        >
+          استلام
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
+
     </>
   );
 }
+
 
 function KpiCard({ icon, label, value, tint }) {
   return (
@@ -1034,68 +1522,87 @@ function TemplateList({ title, items, onToggle, onEdit, onDelete, isAdmin }){
 }
 
 /* ---------------- NEW: AdminReports (received-only + filters + CSV, بدون تجميعات) ---------------- */
-function AdminReports({ api }){
+function AdminReports({ api }) {
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
-  const [filters, setFilters] = useState({ branchId: "", userId: "", startDate: "", endDate: "", q: "" });
+  const [filters, setFilters] = useState({ branchId: "", userId: "", startDate: "", endDate: "", q: "", status: "released" });
   const [rows, setRows] = useState([]); // released فقط
   const [loading, setLoading] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null); // لحفظ الفاتورة المحددة للتفاصيل
 
-  useEffect(()=>{ (async()=>{ try{ const [b,u] = await Promise.all([api.get('/api/branches'), api.get('/api/users')]); setBranches(b.data||[]); setUsers(u.data||[]); }catch(e){ console.error("[AdminReports] meta load error", e); } })(); },[api]);
+  // تحميل الفروع والمستخدمين
+  useEffect(() => {
+    (async () => {
+      try {
+        const [b, u] = await Promise.all([api.get('/api/branches'), api.get('/api/users')]);
+        setBranches(b.data || []);
+        setUsers(u.data || []);
+      } catch (e) {
+        console.error("[AdminReports] meta load error", e);
+      }
+    })();
+  }, [api]);
 
-  useEffect(()=>{ console.log("[AdminReports] Filters changed:", filters); }, [filters]);
+  // تحميل البيانات بناءً على الفلاتر
+  useEffect(() => {
+    const fetchReleased = async () => {
+      setLoading(true);
+      try {
+        const params = { adminStatus: filters.status };
+        if (filters.branchId) params.branchId = filters.branchId;
+        if (filters.userId) params.userId = filters.userId;
+        if (filters.startDate) params.startDate = filters.startDate;
+        if (filters.endDate) params.endDate = filters.endDate;
+        if (filters.q) params.q = filters.q;
 
-  const fetchReleased = async ()=>{
-    setLoading(true);
-    try{
-      const params = { adminStatus: 'released' };
-      if(filters.branchId) params.branchId = filters.branchId;
-      if(filters.userId) params.userId = filters.userId;
-      if(filters.startDate) params.startDate = filters.startDate;
-      if(filters.endDate) params.endDate = filters.endDate;
-      if(filters.q) params.q = filters.q;
+        console.log("[AdminReports] Fetch params =>", params);
 
-      console.log("[AdminReports] Fetch params =>", params);
+        const res = await api.get('/api/forms/admin', { params });
+        setRows(res.data || []);
+      } catch (e) {
+        console.error("[AdminReports] Error:", e?.response?.data || e?.message);
+        toast.error(e?.response?.data?.message || 'تعذّر تحميل البيانات');
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const res = await api.get('/api/forms/admin', { params });
-      console.log("[AdminReports] Result length:", Array.isArray(res.data)? res.data.length : null);
-      if(Array.isArray(res.data) && res.data.length){ console.log("[AdminReports] First row sample:", res.data[0]); }
+    fetchReleased();
+  }, [api, filters]);
 
-      setRows(res.data||[]);
-    }catch(e){ console.error("[AdminReports] Error:", e?.response?.data || e?.message); toast.error(e?.response?.data?.message || 'تعذّر تحميل البيانات'); setRows([]); }
-    finally{ setLoading(false); }
-  };
-  useEffect(()=>{ fetchReleased(); },[/*eslint-disable-line*/ api, filters.branchId, filters.userId, filters.startDate, filters.endDate, filters.q]);
+  // إجماليات
+  const sums = useMemo(() => rows.reduce((a, f) => {
+    const cash = Number(f?.cashCollection || 0);
+    const apps = appsWithFallback(f);
+    const bank = bankWithFallback(f);
+    a.cash += cash;
+    a.apps += apps;
+    a.bank += bank;
+    a.total += (cash + apps + bank);
+    return a;
+  }, { cash: 0, apps: 0, bank: 0, total: 0 }), [rows]);
 
-  // إجماليات (received-only)
-// إجماليات (المبلّغ + fallback)
-const sums = useMemo(()=> rows.reduce((a,f)=>{
-  const cash = Number(f?.cashCollection || 0);
-  const apps = appsWithFallback(f);
-  const bank = bankWithFallback(f);
-  a.cash += cash; a.apps += apps; a.bank += bank; a.total += (cash + apps + bank);
-  return a;
-},{cash:0,apps:0,bank:0,total:0}),[rows]);
-
-
-  // تصدير CSV (received-only)
-  const exportCSV = ()=>{
-    const header = ['التاريخ','الفرع','المستخدم','نقدي (فعلي)','تطبيقات (فعلي)','بنك (فعلي)','الإجمالي (فعلي)'];
+  // تصدير CSV
+  const exportCSV = () => {
+    const header = ['التاريخ', 'الفرع', 'المستخدم', 'نقدي (فعلي)', 'تطبيقات (فعلي)', 'بنك (فعلي)', 'الإجمالي (فعلي)'];
     const lines = [header.join(',')];
-    for(const f of rows){
+    for (const f of rows) {
       const r = getReceived(f);
       const total = r.cash + r.apps + r.bank;
       lines.push([
         formatDateOnly(f.formDate),
-        (f.branch?.name||'-').replaceAll(',',' '),
-        (f.user?.name||'-').replaceAll(',',' '),
+        (f.branch?.name || '-').replaceAll(',', ' '),
+        (f.user?.name || '-').replaceAll(',', ' '),
         r.cash, r.apps, r.bank, total
       ].join(','));
     }
     const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'admin-reports.csv'; a.click();
+    a.href = url;
+    a.download = 'admin-reports.csv';
+    a.click();
     URL.revokeObjectURL(url);
     toast.success('تم تصدير CSV');
   };
@@ -1103,29 +1610,56 @@ const sums = useMemo(()=> rows.reduce((a,f)=>{
   return (
     <div className="space-y-6">
       <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3 text-gray-600"><Filter size={16} /><b>فلاتر تقارير الإدمن (المستلم فقط)</b></div>
+        <div className="flex items-center gap-2 mb-3 text-gray-600">
+          <Filter size={16} />
+          <b>فلاتر تقارير الإدمن (المستلم فقط)</b>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          {/* فلاتر التقارير */}
           <div className="md:col-span-2 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
             <Search size={16} className="text-gray-400" />
-            <input value={filters.q} onChange={(e)=> setFilters(p=>({...p,q:e.target.value}))} className="outline-none w-full text-sm" placeholder="بحث (ملاحظات/مرجع)…" />
+            <input value={filters.q} onChange={(e) => setFilters(p => ({ ...p, q: e.target.value }))} className="outline-none w-full text-sm" placeholder="بحث (ملاحظات/مرجع)…" />
           </div>
-          <select value={filters.branchId} onChange={(e)=> setFilters(p=>({...p,branchId:e.target.value}))} className="border rounded-xl px-3 py-2 bg-white text-sm">
+          <select value={filters.branchId} onChange={(e) => setFilters(p => ({ ...p, branchId: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm">
             <option value="">كل الفروع</option>
-            {branches.map(b=> <option key={b._id} value={b._id}>{b.name}</option>)}
+            {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
           </select>
-          <select value={filters.userId} onChange={(e)=> setFilters(p=>({...p,userId:e.target.value}))} className="border rounded-xl px-3 py-2 bg-white text-sm">
+          <select value={filters.userId} onChange={(e) => setFilters(p => ({ ...p, userId: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm">
             <option value="">كل المستخدمين</option>
-            {users.map(u=> <option key={u._id} value={u._id}>{u.name}</option>)}
+            {users.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
           </select>
-          <input type="date" value={filters.startDate} onChange={(e)=> setFilters(p=>({...p,startDate:e.target.value}))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
-          <input type="date" value={filters.endDate} onChange={(e)=> setFilters(p=>({...p,endDate:e.target.value}))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
+          <input type="date" value={filters.startDate} onChange={(e) => setFilters(p => ({ ...p, startDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
+          <input type="date" value={filters.endDate} onChange={(e) => setFilters(p => ({ ...p, endDate: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm" />
+          <select value={filters.status} onChange={(e) => setFilters(p => ({ ...p, status: e.target.value }))} className="border rounded-xl px-3 py-2 bg-white text-sm">
+            <option value="released">مفعل</option>
+            <option value="pending">معلق</option>
+            <option value="rejected">مرفوض</option>
+          </select>
           <div className="md:col-span-6 flex flex-wrap items-center justify-between gap-2 mt-1">
             <div className="text-sm text-gray-500">النتائج: <b>{rows.length}</b></div>
             <div className="flex gap-2">
-              <button onClick={()=>{ const d=new Date(); const iso=(x)=>x.toISOString().slice(0,10); setFilters(p=>({...p,startDate:iso(d),endDate:iso(d)})); }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">اليوم</button>
-              <button onClick={()=>{ const d=new Date(); const day=d.getDay()||7; const start=new Date(d); start.setDate(d.getDate()-(day-1)); const iso=(x)=>x.toISOString().slice(0,10); setFilters(p=>({...p,startDate:iso(start),endDate:iso(d)})); }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الأسبوع</button>
-              <button onClick={()=>{ const d=new Date(); const start=new Date(d.getFullYear(), d.getMonth(), 1); const iso=(x)=>x.toISOString().slice(0,10); setFilters(p=>({...p,startDate:iso(start),endDate:iso(d)})); }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الشهر</button>
-              <button onClick={exportCSV} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 inline-flex items-center gap-2"><Download size={16}/> تصدير CSV</button>
+              <button onClick={() => {
+                const d = new Date();
+                const iso = (x) => x.toISOString().slice(0, 10);
+                setFilters(p => ({ ...p, startDate: iso(d), endDate: iso(d) }));
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">اليوم</button>
+              <button onClick={() => {
+                const d = new Date();
+                const day = d.getDay() || 7;
+                const start = new Date(d);
+                start.setDate(d.getDate() - (day - 1));
+                const iso = (x) => x.toISOString().slice(0, 10);
+                setFilters(p => ({ ...p, startDate: iso(start), endDate: iso(d) }));
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الأسبوع</button>
+              <button onClick={() => {
+                const d = new Date();
+                const start = new Date(d.getFullYear(), d.getMonth(), 1);
+                const iso = (x) => x.toISOString().slice(0, 10);
+                setFilters(p => ({ ...p, startDate: iso(start), endDate: iso(d) }));
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الشهر</button>
+              <button onClick={exportCSV} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 inline-flex items-center gap-2">
+                <Download size={16} /> تصدير CSV
+              </button>
             </div>
           </div>
         </div>
@@ -1153,13 +1687,14 @@ const sums = useMemo(()=> rows.reduce((a,f)=>{
                 <th className="p-2 border">تطبيقات (فعلي)</th>
                 <th className="p-2 border">بنك (فعلي)</th>
                 <th className="p-2 border">الإجمالي</th>
+                <th className="p-2 border">تفاصيل</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="p-4 text-center">جاري التحميل…</td></tr>
+                <tr><td colSpan={8} className="p-4 text-center">جاري التحميل…</td></tr>
               ) : rows.length ? (
-                rows.map((f)=>{
+                rows.map((f) => {
                   const r = getReceived(f);
                   const total = r.cash + r.apps + r.bank;
                   return (
@@ -1171,19 +1706,45 @@ const sums = useMemo(()=> rows.reduce((a,f)=>{
                       <td className="p-2 border">{currency(r.apps)}</td>
                       <td className="p-2 border">{currency(r.bank)}</td>
                       <td className="p-2 border">{currency(total)}</td>
+                      <td className="p-2 border">
+                        <button onClick={() => setSelectedInvoice(f)} className="text-blue-500 hover:underline">عرض التفاصيل</button>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
-                <tr><td colSpan={7} className="p-4 text-center text-gray-500">لا توجد نتائج</td></tr>
+                <tr><td colSpan={8} className="p-4 text-center text-gray-500">لا توجد نتائج</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* عرض تفاصيل الفاتورة */}
+      {selectedInvoice && (
+        <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mt-6">
+          <h3 className="text-md font-semibold mb-3">تفاصيل الفاتورة</h3>
+          <div className="mb-4">
+            <p><strong>التاريخ:</strong> {formatDateOnly(selectedInvoice.formDate)}</p>
+            <p><strong>الفرع:</strong> {selectedInvoice.branch?.name || '-'}</p>
+            <p><strong>المستخدم:</strong> {selectedInvoice.user?.name || '-'}</p>
+            <p><strong>الملاحظات:</strong> {selectedInvoice.notes}</p>
+            <p><strong>التطبيقات:</strong></p>
+            <ul>
+              {selectedInvoice.applications.map((app, index) => (
+                <li key={index}>{app.name}: {app.amount}</li>
+              ))}
+            </ul>
+            <p><strong>المرفقات:</strong> {/* يمكنك إضافة الكود هنا لعرض المرفقات */}</p>
+          </div>
+          <button onClick={() => setSelectedInvoice(null)} className="text-blue-500 hover:underline">إغلاق</button>
+        </section>
+      )}
     </div>
   );
 }
+
+
 /* ---------------- FIXED & ENHANCED + STATUS FILTER: AllFormsPage ---------------- */
 
 function AllFormsPage({ api, isAdmin }) {
@@ -1371,3 +1932,4 @@ function AllFormsPage({ api, isAdmin }) {
     </div>
   );
 }
+

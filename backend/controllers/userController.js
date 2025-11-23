@@ -110,52 +110,25 @@ const myBranches = async (req, res) => {
 // (Admin) تعديل مستخدم
 const updateUser = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, email, role, assignedBranches } = req.body;
+    const { assignedBranches } = req.body;
 
-    const user = await User.findById(id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // تأكد من أن الحقل assignedBranches يحتوي على فروع معينة
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { assignedBranches },
+      { new: true }
+    );
 
-    if (email) {
-      const emailLower = email.toLowerCase().trim();
-      const exists = await User.findOne({ email: emailLower, _id: { $ne: id } });
-      if (exists) return res.status(409).json({ message: "Email already exists" });
-      user.email = emailLower;
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-if (role) {
-  const allowedRoles = ["User", "Accountant", "Admin", "BranchManager"]; // ✅
-  if (!allowedRoles.includes(role)) {
-    return res.status(400).json({ message: "Invalid role" });
-  }
-  user.role = role;
-}
-
-
-    if (name) {
-      user.name = name.trim();
-    }
-
-    if (Array.isArray(assignedBranches)) {
-      const count = await Branch.countDocuments({ _id: { $in: assignedBranches } });
-      if (count !== assignedBranches.length) {
-        return res.status(404).json({ message: "One or more branches not found" });
-      }
-      user.assignedBranches = assignedBranches;
-    }
-
-    await user.save();
-
-    const safe = await User.findById(user._id)
-      .select("-password")
-      .populate("assignedBranches", "name");
-
-    return res.json({ message: "User updated", user: safe });
+    return res.json(updatedUser);
   } catch (error) {
-    console.error("updateUser error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // (Admin) حذف مستخدم
 const deleteUser = async (req, res) => {
