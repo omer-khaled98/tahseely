@@ -130,16 +130,17 @@ const api = useApi();
           </div>
         </div>
 
-        {/* Mobile Tabs */}
-        <div className="md:hidden px-2 pb-2 flex gap-2 overflow-auto">
-          <SmallNavBtn label="لوحة التحكم" active={tab==="dashboard"} onClick={()=>setTab("dashboard")} />
-          <SmallNavBtn label="تقارير مدراء الفروع" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
-          <SmallNavBtn label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
-          <SmallNavBtn label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
-          <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
-          {/*<SmallNavBtn label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />*/}
-          <SmallNavBtn label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} /> {/* ✅ أضف السطر ده */}
-        </div>
+{/* Mobile Tabs */}
+<div className="md:hidden px-2 pb-2 flex gap-2 overflow-auto">
+  <SmallNavBtn label="لوحة التحكم" active={tab==="dashboard"} onClick={()=>setTab("dashboard")} />
+  <SmallNavBtn label="تقارير مدراء الفروع" active={tab==="receipts"} onClick={()=>setTab("receipts")} />
+  <SmallNavBtn label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
+  <SmallNavBtn label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
+  <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
+  <SmallNavBtn label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} />
+  <SmallNavBtn label="ملخصات الإدارة" active={tab==="adminSummary"} onClick={()=>setTab("adminSummary")} />
+</div>
+
       </header>
 
       {/* Content */}
