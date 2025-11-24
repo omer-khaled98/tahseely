@@ -70,9 +70,16 @@ function mapOut(f) {
     pettyCash: f.pettyCash || 0,
     purchases: f.purchases || 0,
     cashCollection: f.cashCollection || 0,
+applications: (f.applications || []).map(a => ({
+  name: a.name || a.methodName || a.templateName || "غير مسمى",
+  amount: Number(a.amount || 0)
+})),
 
-    applications: f.applications || [],
-    bankCollections: f.bankCollections || [],
+bankCollections: (f.bankCollections || []).map(b => ({
+  name: b.name || b.methodName || b.templateName || "غير مسمى",
+  amount: Number(b.amount || 0)
+})),
+
 
     appsTotal,
     bankTotal,
@@ -501,29 +508,61 @@ const adminReleaseForm = async (req, res) => {
 };
 
 // 🔵 Reject الأدمن
+// 🔵 Reject الأدمن — يرجّع التقرير لمدير الفرع
 const adminRejectForm = async (req, res) => {
   try {
     const { id } = req.params;
     const { note = "" } = req.body;
+
     const form = await Form.findById(id);
     if (!form) return res.status(404).json({ message: "Form not found" });
 
+    // لازم يكون فيه release من المحاسب ومدير الفرع
     if (form.accountantRelease?.status !== "released") {
       return res.status(400).json({ message: "يجب عمل Release من المحاسب أولًا" });
     }
+    if (form.branchManagerRelease?.status !== "released") {
+      return res.status(400).json({ message: "يجب عمل Release من مدير الفرع أولًا" });
+    }
 
-    form.adminRelease = { status: "rejected", by: req.user._id, at: new Date() };
-    form.adminNote = String(note || "");
-    form.status = "rejected";
+    // 1) تحديث حالة الأدمن
+    form.adminRelease = {
+      status: "rejected",
+      by: req.user._id,
+      at: new Date(),
+      note: String(note || "")
+    };
+
+    // 2) رجّع التقرير لمدير الفرع
+    form.branchManagerRelease.status = "pending";
+    form.branchManagerRelease.note = "";
+    form.branchManagerRelease.at = null;
+
+    // 3) حفظ سبب الرفض العام
+    form.rejectionReason = String(note || "");
+
+    // 4) تحديث الحالة العامة
+    form.status = "rejected_by_admin";
+
     await form.save();
 
-    const populated = await form.populate([{ path: "branch", select: "name" }, { path: "user", select: "name" }]);
-    return res.json({ message: "Form rejected by admin", form: mapOut(populated) });
+    // populate
+    const populated = await form.populate([
+      { path: "branch", select: "name" },
+      { path: "user", select: "name" }
+    ]);
+
+    return res.json({
+      message: "Form rejected by admin and returned to branch manager",
+      form: mapOut(populated),
+    });
+
   } catch (error) {
     console.error("❌ adminRejectForm error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 
 // 🟡 عرض فورماتي الخاصة بالمستخدم
@@ -555,10 +594,12 @@ const listFormsForReview = async (req, res) => {
 
     const filters = {};
 
-    // ✅ دعم اختيار أكتر من فرع
-    if (branches) {
+    // ✅ إذا كان المستخدم محاسبًا، نقوم بتصفية الفروع بناءً على assignedBranches
+    if (req.user.role === "Accountant" && req.user.assignedBranches.length > 0) {
+      filters.branch = { $in: req.user.assignedBranches };  // فقط الفروع المخصصة للمحاسب
+    } else if (branches) {
       const arr = Array.isArray(branches) ? branches : branches.split(",");
-      filters.branch = { $in: arr };
+      filters.branch = { $in: arr }; // دعم اختيار أكتر من فرع
     }
 
     // ✅ التاريخ
@@ -596,6 +637,7 @@ const listFormsForReview = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // 🔵 عرض فورمات الأدمن
 const listFormsForAdmin = async (req, res) => {

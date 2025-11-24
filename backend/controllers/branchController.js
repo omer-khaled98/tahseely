@@ -1,4 +1,3 @@
-// controllers/branchController.js
 const Branch = require("../models/Branch");
 const Form = require("../models/Form");
 const User = require("../models/User");
@@ -21,9 +20,18 @@ const createBranch = async (req, res) => {
   }
 };
 
-// جلب كل الفروع (أي مستخدم مسجل)
+// جلب كل الفروع (أي مستخدم مسجل) مع التحقق من صلاحيات المحاسب
 const getBranches = async (req, res) => {
   try {
+    // تحقق من صلاحيات المحاسب
+    if (req.user.role === "Accountant" && req.user.assignedBranches.length > 0) {
+      const branches = await Branch.find({
+        _id: { $in: req.user.assignedBranches },
+      }).sort({ createdAt: -1 });
+      return res.json(branches);
+    }
+
+    // إذا كان المستخدم ليس محاسبًا أو لا توجد فروع مخصصة له، اعرض جميع الفروع
     const branches = await Branch.find().sort({ createdAt: -1 });
     return res.json(branches);
   } catch (error) {

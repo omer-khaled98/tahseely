@@ -764,15 +764,16 @@ function OneTabView({ api, tabKey, title }) {
                       )}
                     </td>
                     <td className="p-2 border">
-                      <button
-                        onClick={() => {
-                          setSelectedForm(f);
-                          fetchAttachments(f._id);
-                        }}
-                        className="px-2 py-1 text-xs bg-sky-600 text-white rounded"
-                      >
-                        عرض
-                      </button>
+<button
+  onClick={() => {
+    setSelectedForm(f);
+    fetchAttachments(f._id);
+  }}
+  className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 shadow"
+>
+  عرض / PDF
+</button>
+
                     </td>
                   </tr>
                 ))
@@ -1320,78 +1321,152 @@ function AllAnalyticsTab({ api }) {
    Details Modal — زر إغلاق مثبت بأسفل المودال
    ========================================================= */
 function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
+  const modalRef = useRef(null);
+
+  // PDF Export
+  const exportPDF = async () => {
+    try {
+      const el = modalRef.current;
+      if (!el) return;
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const img = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const w = pdf.internal.pageSize.getWidth();
+      const h = (canvas.height * w) / canvas.width;
+      pdf.addImage(img, "PNG", 0, 0, w, h);
+      pdf.save(`report-${form._id}.pdf`);
+    } catch (err) {
+      console.error(err);
+      toast.error("تعذّر تصدير الـ PDF");
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 relative flex flex-col">
-        <h3 className="text-lg font-bold mb-4">تفاصيل التقرير</h3>
+<div className="fixed inset-0 bg-black/60 flex items-start justify-center p-4 z-[2147483647] overflow-y-auto">
+<div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 relative z-[100000] flex flex-col">
 
-        <div className="space-y-2 text-sm">
-          <p><b>التاريخ:</b> {formatDateOnly(form.formDate)}</p>
-          <p><b>الفرع:</b> {form.branch?.name}</p>
-          <p><b>المستخدم:</b> {form.user?.name}</p>
-          <p><b>العهدة:</b> {currency(form.pettyCash)}</p>
-          <p><b>المشتريات:</b> {currency(form.purchases)}</p>
-          <p><b>نقدي:</b> {currency(form.cashCollection)}</p>
-          <p><b>تطبيقات:</b> {currency(appsWithFallback(form))}</p>
-          <p><b>بنك:</b> {currency(bankWithFallback(form))}</p>
-          <p><b>الإجمالي:</b> {currency(rowTotal(form))}</p>
-          <p><b>ملاحظات:</b> {form.notes || "-"}</p>
+        {/* Header */}
+<div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-[10000] py-2">
+          <h3 className="text-lg font-bold">تفاصيل التقرير</h3>
 
-          {/* ملاحظات المحاسب والمدير */}
-          <div className="mt-2 p-2 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">ملاحظات الاعتماد/الرفض:</p>
-            <div className="text-xs">
-              <div>
-                <b>المحاسب:</b>{" "}
-                {form?.accountantRelease?.note ? form.accountantRelease.note : "-"}
-              </div>
-              <div>
-                <b>المدير:</b>{" "}
-                {form?.branchManagerRelease?.note
-                  ? form.branchManagerRelease.note
-                  : "-"}
-              </div>
-            </div>
+          <button
+            onClick={exportPDF}
+            className="px-3 py-1 text-xs bg-gray-900 text-white rounded-xl hover:bg-black flex items-center gap-1"
+          >
+            <Download size={14} />
+            PDF
+          </button>
+        </div>
+
+        {/* Content */}
+        <div ref={modalRef}>
+
+          {/* Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <MiniTotal title="نقدي" value={currency(form.cashCollection)} />
+            <MiniTotal title="تطبيقات" value={currency(appsWithFallback(form))} />
+            <MiniTotal title="بنك" value={currency(bankWithFallback(form))} />
+            <MiniTotal title="الإجمالي" value={currency(rowTotal(form))} />
+          </div>
+
+          {/* Basic Info */}
+          <div className="space-y-1 text-sm bg-gray-50 p-3 rounded-xl mb-4">
+            <p><b>التاريخ:</b> {formatDateOnly(form.formDate)}</p>
+            <p><b>الفرع:</b> {form.branch?.name}</p>
+            <p><b>المستخدم:</b> {form.user?.name}</p>
+            <p><b>العهدة:</b> {currency(form.pettyCash)}</p>
+            <p><b>المشتريات:</b> {currency(form.purchases)}</p>
+            <p><b>ملاحظات المستخدم:</b> {form.notes || "-"}</p>
+          </div>
+
+          {/* Apps Breakdown */}
+          <div className="mb-4">
+            <h4 className="font-semibold mb-2">تفاصيل التطبيقات</h4>
+            {form.applications?.length ? (
+              <table className="w-full text-sm border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">الطريقة</th>
+                    <th className="p-2 border">القيمة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.applications.map((a, i) => (
+                    <tr key={i}>
+                      <td className="p-2 border">{a.name}</td>
+                      <td className="p-2 border">{currency(a.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-500 text-sm">لا توجد معاملات تطبيقات</p>
+            )}
+          </div>
+
+          {/* Bank Breakdown */}
+          <div className="mb-4">
+            <h4 className="font-semibold mb-2">تفاصيل البنك</h4>
+            {form.bankCollections?.length ? (
+              <table className="w-full text-sm border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">الطريقة</th>
+                    <th className="p-2 border">القيمة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.bankCollections.map((b, i) => (
+                    <tr key={i}>
+                      <td className="p-2 border">{b.name}</td>
+                      <td className="p-2 border">{currency(b.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-500 text-sm">لا توجد معاملات بنكية</p>
+            )}
+          </div>
+
+          {/* Attachments */}
+          <div className="mt-6">
+            <h4 className="font-semibold mb-2">المرفقات</h4>
+            {attLoading ? (
+              <p className="text-gray-500 text-sm">جاري التحميل…</p>
+            ) : attachments.length ? (
+              <ul className="grid grid-cols-2 gap-2">
+                {attachments.map((att) => {
+                  const isImg = att.fileUrl?.match(/\.(jpg|jpeg|png|webp)$/i);
+                  const href = att.fileUrl?.startsWith("http")
+                    ? att.fileUrl
+                    : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl || ""}`;
+
+                  return (
+                    <li key={att._id} className="border rounded-xl overflow-hidden">
+                      <a href={href} target="_blank" rel="noopener noreferrer">
+                        {isImg ? (
+                          <img src={href} className="w-full h-32 object-cover" alt="" />
+                        ) : (
+                          <div className="p-3 text-center text-sm">{att.fileUrl}</div>
+                        )}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
+            )}
           </div>
         </div>
 
-        {/* Attachments */}
-        <div className="mt-4">
-          <h4 className="font-semibold mb-2">المرفقات</h4>
-          {attLoading ? (
-            <p className="text-gray-500 text-sm">جاري التحميل…</p>
-          ) : attachments.length ? (
-            <ul className="grid grid-cols-2 gap-2">
-              {attachments.map((att) => {
-                const isImg = att.fileUrl?.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i);
-                const href = att.fileUrl?.startsWith("http")
-                  ? att.fileUrl
-                  : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl || ""}`;
-                return (
-                  <li key={att._id} className="border rounded-xl overflow-hidden">
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="block">
-                      {isImg ? (
-                        <img src={href} alt={att.type || "attachment"} className="w-full h-32 object-cover" />
-                      ) : (
-                        <div className="p-3 text-center text-sm text-gray-600">
-                          {att.fileUrl?.split("/").pop()}
-                        </div>
-                      )}
-                    </a>
-                    <div className="text-xs text-gray-500 text-center p-1 bg-gray-50 border-t">
-                      {att.type?.toUpperCase() || "ملف"}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
-          )}
-        </div>
-
-        {/* أزرار ثابتة بأسفل المودال */}
-        <div className="sticky bottom-0 bg-white pt-4 mt-6 border-t flex justify-end gap-2">
+        {/* Footer */}
+        <div className="flex justify-end gap-2 mt-6">
           {(!form.branchManagerRelease ||
             form.branchManagerRelease.status === "pending") && (
             <>
@@ -1420,3 +1495,4 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
     </div>
   );
 }
+
