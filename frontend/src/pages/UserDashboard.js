@@ -165,83 +165,93 @@ const actualSalesAuto = useMemo(
   const totalSalesLive = actualSalesAuto;
 
   // ---------------- إرسال الفورم ----------------
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const appsPayload = applications
-        .filter((x) => x.templateId && Number(x.amount) > 0)
-        .map((x) => ({
-          template: x.templateId,
-          name: x.name,
-          amount: Number(x.amount),
-        }));
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-      const bankPayload = bankCollections
-        .filter((x) => x.templateId && Number(x.amount) > 0)
-        .map((x) => ({
-          template: x.templateId,
-          name: x.name,
-          amount: Number(x.amount),
-        }));
+  // ✅ رسالة تأكيد قبل الإرسال
+  const isConfirmed = window.confirm(
+    "هل أنت متأكد من إرسال التقرير ورفع جميع المرفقات؟"
+  );
+  if (!isConfirmed) return;
 
-      const payload = {
-        ...formData,
-        formDate: new Date(formData.formDate),
-        applications: appsPayload,
-        bankCollections: bankPayload,
-        appsCollection: appsTotal,
-        actualSales: actualSalesAuto, // ✅ اعتماد القيمة المحسوبة فقط
-      };
-
-      // 1️⃣ إنشاء الفورم
-      const res = await api.post("/api/forms", payload);
-      const createdForm = res.data;
-      toast.success(" تم إنشاء الفورم بنجاح");
-
-      // 2️⃣ رفع المرفقات المرتبطة
-for (const [key, fileList] of Object.entries(files)) {
-  if (fileList && fileList.length > 0) {
-    const formDataUpload = new FormData();
-
-    // 🟢 رفع كل الملفات مع نفس المفاتيح
-    for (const file of fileList) {
-      formDataUpload.append("file", file);
-    }
-
-    formDataUpload.append("form", createdForm._id);
-    formDataUpload.append("type", key);
-
-    try {
-      await api.post("/api/documents", formDataUpload, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success(`📎 تم رفع ${fileList.length} مرفق/مرفقات (${key}) بنجاح`);
-    } catch (err) {
-      console.error("❌ Error uploading files:", err?.response || err);
-      toast.error(`حدث خطأ أثناء رفع مرفقات ${key}`);
-    }
-  }
-}
-
-      // 3️⃣ Reset بعد النجاح
-      setForms((prev) => [...prev, createdForm]);
-      setFormData((d) => ({
-        ...d,
-        pettyCash: "",
-        purchases: "",
-        cashCollection: "",
-        actualSales: 0,
-        notes: "",
+  try {
+    const appsPayload = applications
+      .filter((x) => x.templateId && Number(x.amount) > 0)
+      .map((x) => ({
+        template: x.templateId,
+        name: x.name,
+        amount: Number(x.amount),
       }));
-      setApplications([]);
-      setBankCollections([]);
-      setFiles({});
-      setResetKey((prev) => prev + 1);
-    } catch (err) {
-      console.error("❌ Error creating form:", err?.response || err);
-      toast.error(err?.response?.data?.message || "حصل خطأ أثناء إنشاء الفورم");
+
+    const bankPayload = bankCollections
+      .filter((x) => x.templateId && Number(x.amount) > 0)
+      .map((x) => ({
+        template: x.templateId,
+        name: x.name,
+        amount: Number(x.amount),
+      }));
+
+    const payload = {
+      ...formData,
+      formDate: new Date(formData.formDate),
+      applications: appsPayload,
+      bankCollections: bankPayload,
+      appsCollection: appsTotal,
+      actualSales: actualSalesAuto, // ✅ اعتماد القيمة المحسوبة فقط
+    };
+
+    // 1️⃣ إنشاء الفورم
+    const res = await api.post("/api/forms", payload);
+    const createdForm = res.data;
+    toast.success(" تم إنشاء الفورم بنجاح");
+
+    // 2️⃣ رفع المرفقات المرتبطة
+    for (const [key, fileList] of Object.entries(files)) {
+      if (fileList && fileList.length > 0) {
+        const formDataUpload = new FormData();
+
+        // 🟢 رفع كل الملفات مع نفس المفاتيح
+        for (const file of fileList) {
+          formDataUpload.append("file", file);
+        }
+
+        formDataUpload.append("form", createdForm._id);
+        formDataUpload.append("type", key);
+
+        try {
+          await api.post("/api/documents", formDataUpload, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          toast.success(
+            `📎 تم رفع ${fileList.length} مرفق/مرفقات (${key}) بنجاح`
+          );
+        } catch (err) {
+          console.error("❌ Error uploading files:", err?.response || err);
+          toast.error(`حدث خطأ أثناء رفع مرفقات ${key}`);
+        }
+      }
     }
-  };
+
+    // 3️⃣ Reset بعد النجاح
+    setForms((prev) => [...prev, createdForm]);
+    setFormData((d) => ({
+      ...d,
+      pettyCash: "",
+      purchases: "",
+      cashCollection: "",
+      actualSales: 0,
+      notes: "",
+    }));
+    setApplications([]);
+    setBankCollections([]);
+    setFiles({});
+    setResetKey((prev) => prev + 1);
+  } catch (err) {
+    console.error("❌ Error creating form:", err?.response || err);
+    toast.error(err?.response?.data?.message || "حصل خطأ أثناء إنشاء الفورم");
+  }
+};
+
 
   // ---------------- إجمالي المبيعات اليومية ----------------
   const totalDailySales = forms.reduce(
