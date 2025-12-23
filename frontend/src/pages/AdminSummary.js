@@ -253,7 +253,7 @@ function AdminSummary({ api }) {
                     {/* Branch total */}
                     <div className="text-right mt-3 font-bold text-indigo-600">
                       المجموع الفرعي: {currency(
-                        B.cash + B.petty + B.purch + B.appsTotal + B.bankTotal
+                        B.cash + B.purch + B.appsTotal + B.bankTotal
                       )}
                     </div>
 
