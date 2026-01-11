@@ -1,5 +1,8 @@
 const Form = require("../models/Form");
 const ReportTemplate = require("../models/ReportTemplate");
+const Counter = require("../models/Counter");
+const Branch = require("../models/Branch");
+
 
 // 🧩 مساعد: تحويل templateId/methodId -> lineItem مع اسم ثابت
 async function buildLinesFromTemplates(items, group) {
@@ -34,52 +37,52 @@ async function buildLinesFromTemplates(items, group) {
 function mapOut(f) {
   const appsTotal =
     typeof f.appsTotal === "number" ? f.appsTotal : f.appsCollection || 0;
+
   const legacyBank = (f.bankMada || 0) + (f.bankVisa || 0);
   const bankDyn = (f.bankCollections || []).reduce(
     (s, x) => s + Number(x?.amount || 0),
     0
   );
+
   const bankTotal =
     typeof f.bankTotal === "number" ? f.bankTotal : legacyBank + bankDyn;
+
   const totalSales =
     typeof f.totalSales === "number"
       ? f.totalSales
       : Number(f.cashCollection || 0) + appsTotal + bankTotal;
 
-  const accountantRelease =
-    f.accountantRelease && typeof f.accountantRelease === "object"
-      ? f.accountantRelease
-      : { status: "pending", note: "" };
-
-  const branchManagerRelease =
-    f.branchManagerRelease && typeof f.branchManagerRelease === "object"
-      ? f.branchManagerRelease
-      : { status: "pending", note: "" };
-
-  const adminRelease =
-    f.adminRelease && typeof f.adminRelease === "object"
-      ? f.adminRelease
-      : { status: "pending", note: "" };
-
   return {
+    // 🆔 Identifiers
     _id: f._id,
+    serialNumber: f.serialNumber,
+
+    // 📅 Dates
     formDate: f.formDate,
+    uploadedAt: f.createdAt,
+
+    accountantReleaseAt: f.accountantRelease?.at || null,
+    branchManagerReleaseAt: f.branchManagerRelease?.at || null,
+    adminReleaseAt: f.adminRelease?.at || null,
+
+    // 👥 Relations
     branch: f.branch,
     user: f.user,
 
+    // 💰 Financials (Decimals supported)
     pettyCash: f.pettyCash || 0,
     purchases: f.purchases || 0,
     cashCollection: f.cashCollection || 0,
-applications: (f.applications || []).map(a => ({
-  name: a.name || a.methodName || a.templateName || "غير مسمى",
-  amount: Number(a.amount || 0)
-})),
 
-bankCollections: (f.bankCollections || []).map(b => ({
-  name: b.name || b.methodName || b.templateName || "غير مسمى",
-  amount: Number(b.amount || 0)
-})),
+    applications: (f.applications || []).map(a => ({
+      name: a.name || "غير مسمى",
+      amount: Number(a.amount || 0),
+    })),
 
+    bankCollections: (f.bankCollections || []).map(b => ({
+      name: b.name || "غير مسمى",
+      amount: Number(b.amount || 0),
+    })),
 
     appsTotal,
     bankTotal,
@@ -88,19 +91,24 @@ bankCollections: (f.bankCollections || []).map(b => ({
     actualSales: f.actualSales || 0,
     notes: f.notes || "",
 
+    // 📌 Status
     status: f.status || "draft",
-    accountantRelease,
-    branchManagerRelease,
-    adminRelease,
+
+    accountantRelease: f.accountantRelease || { status: "pending", note: "" },
+    branchManagerRelease: f.branchManagerRelease || { status: "pending", note: "" },
+    adminRelease: f.adminRelease || { status: "pending", note: "" },
 
     adminNote: f.adminNote || "",
+
     receivedCash: f.receivedCash || 0,
     receivedApps: f.receivedApps || 0,
     receivedBank: f.receivedBank || 0,
 
     createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
   };
 }
+
 
 // 🟢 إنشاء فورم
 const createForm = async (req, res) => {
@@ -119,26 +127,65 @@ const createForm = async (req, res) => {
       bankCollections = [],
     } = req.body;
 
-    const assigned = (req.user.assignedBranches || []).map(b => b.toString());
-    if (!assigned.includes(String(branch))) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized for this branch" });
+    // 1️⃣ Validation أولًا
+    if (!branch) {
+      return res.status(400).json({ message: "الفرع مطلوب" });
+    }
+    if (!formDate) {
+      return res.status(400).json({ message: "التاريخ مطلوب" });
     }
 
+    // 2️⃣ صلاحية الفرع
+    const assigned = (req.user.assignedBranches || []).map(b => b.toString());
+    if (!assigned.includes(String(branch))) {
+      return res.status(403).json({ message: "Not authorized for this branch" });
+    }
+
+    // 3️⃣ منع التكرار (بعد validation)
+    const exists = await Form.findOne({
+      branch,
+      formDate: new Date(formDate),
+    });
+
+    if (exists) {
+      return res.status(409).json({
+        message: "مرفوض: يوجد فورم مسجل لهذا الفرع في نفس التاريخ",
+      });
+    }
+
+    // 4️⃣ بيانات الفرع (بعد التأكد)
+    const branchData = await Branch.findById(branch).select("name");
+    if (!branchData) {
+      return res.status(404).json({ message: "الفرع غير موجود" });
+    }
+
+    // 5️⃣ Serial Number
+    const counter = await Counter.findOneAndUpdate(
+      { name: "forms" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
+    const branchCode = branchData.name.substring(0, 3).toUpperCase();
+    const year = new Date(formDate).getFullYear();
+    const serialNumber = `${year}-${branchCode}-${String(counter.seq).padStart(6, "0")}`;
+
+    // 6️⃣ Build lines
     const appsLine = await buildLinesFromTemplates(applications, "applications");
     const bankLine = await buildLinesFromTemplates(bankCollections, "bank");
 
+    // 7️⃣ Create
     const form = await Form.create({
+      serialNumber,
       user: req.user._id,
       branch,
       formDate: new Date(formDate),
-      pettyCash: Number(pettyCash) || 0,
-      purchases: Number(purchases) || 0,
-      cashCollection: Number(cashCollection) || 0,
-      bankMada: Number(bankMada) || 0,
-      bankVisa: Number(bankVisa) || 0,
-      actualSales: Number(actualSales) || 0,
+      pettyCash,
+      purchases,
+      cashCollection,
+      bankMada,
+      bankVisa,
+      actualSales,
       notes,
       applications: appsLine,
       bankCollections: bankLine,
@@ -159,6 +206,7 @@ const createForm = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // 🟡 تحديث فورم
 const updateForm = async (req, res) => {
