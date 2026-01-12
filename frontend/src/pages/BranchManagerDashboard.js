@@ -1,6 +1,7 @@
 // src/pages/BranchManagerDashboard.js
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "../hooks/useApi";
+import ReportTimeline from "../components/ui/ReportTimeline";
 import {
   LayoutDashboard,
   LogOut,
@@ -512,21 +513,36 @@ function OneTabView({ api, tabKey, title }) {
   }, [forms, tabKey, filters, rejectedCache]);
 
   // Totals
-  const totals = useMemo(() => {
-    return filteredForms.reduce(
-      (acc, f) => {
-        const cash = Number(f?.cashCollection || 0);
-        const apps = appsWithFallback(f);
-        const bank = bankWithFallback(f);
-        acc.cash += cash;
-        acc.apps += apps;
-        acc.bank += bank;
-        acc.total += cash + apps + bank;
-        return acc;
-      },
-      { cash: 0, apps: 0, bank: 0, total: 0 }
-    );
-  }, [filteredForms]);
+const totals = useMemo(() => {
+  return filteredForms.reduce(
+    (acc, f) => {
+      const cash = Number(f?.cashCollection || 0);
+      const apps = appsWithFallback(f);
+      const bank = bankWithFallback(f);
+      const purchases = Number(f?.purchases || 0);
+      const petty = Number(f?.pettyCash || 0);
+
+      acc.cash += cash;
+      acc.apps += apps;
+      acc.bank += bank;
+      acc.purchases += purchases;
+      acc.petty += petty;
+
+      acc.total += cash + apps + bank;
+
+      return acc;
+    },
+    {
+      cash: 0,
+      apps: 0,
+      bank: 0,
+      purchases: 0,
+      petty: 0,
+      total: 0,
+    }
+  );
+}, [filteredForms]);
+
 
   const statsCards = useMemo(() => {
     return {
@@ -682,12 +698,15 @@ function OneTabView({ api, tabKey, title }) {
       {/* Totals */}
       <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 overflow-visible">
         <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <MiniTotal title="نقدي" value={currency(totals.cash)} />
-          <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
-          <MiniTotal title="البنك" value={currency(totals.bank)} />
-          <MiniTotal title="إجمالي المبيعات" value={currency(totals.total)} />
-        </div>
+<div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
+  <MiniTotal title="نقدي" value={currency(totals.cash)} />
+  <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
+  <MiniTotal title="البنك" value={currency(totals.bank)} />
+  <MiniTotal title="المشتريات" value={currency(totals.purchases)} />
+  <MiniTotal title="العهدة" value={currency(totals.petty)} />
+  <MiniTotal title="إجمالي المبيعات" value={currency(totals.total)} />
+</div>
+
       </section>
 
       {/* Filters — واضحة دائمًا */}
@@ -700,109 +719,209 @@ function OneTabView({ api, tabKey, title }) {
         onRefresh={fetchForms}
       />
 
-      {/* Table */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">
-            {title} ({filteredForms.length})
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">التاريخ</th>
-                <th className="p-2 border">الفرع</th>
-                <th className="p-2 border">المستخدم</th>
-                <th className="p-2 border">نقدي</th>
-                <th className="p-2 border">تطبيقات</th>
-                <th className="p-2 border">بنك</th>
-                <th className="p-2 border">الإجمالي</th>
-                <th className="p-2 border">الحالة</th>
-                <th className="p-2 border">إجراءات</th>
-                <th className="p-2 border">عرض</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="p-4 text-center">
-                    جاري التحميل…
-                  </td>
-                </tr>
-              ) : filteredForms.length ? (
-                filteredForms.map((f) => (
-                  <tr key={f._id} className="text-center">
-                    <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
-                    <td className="p-2 border">{f.branch?.name || "-"}</td>
-                    <td className="p-2 border">{f.user?.name || "-"}</td>
-                    <td className="p-2 border">{currency(f.cashCollection)}</td>
-                    <td className="p-2 border">{currency(appsWithFallback(f))}</td>
-                    <td className="p-2 border">{currency(bankWithFallback(f))}</td>
-                    <td className="p-2 border">{currency(rowTotal(f))}</td>
-                    <td className="p-2 border">
-                      <StatusPill status={f.branchManagerRelease?.status} />
-                    </td>
-                    <td className="p-2 border">
-                      {/* إجراءات المدير تظهر فقط في pending */}
-                      {(!f.branchManagerRelease ||
-                        f.branchManagerRelease.status === "pending") && (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => onAction(f, "release")}
-                            className="px-2 py-1 text-xs bg-emerald-600 text-white rounded"
-                          >
-                            Release
-                          </button>
-                          <button
-                            onClick={() => onAction(f, "reject")}
-                            className="px-2 py-1 text-xs bg-rose-600 text-white rounded"
-                          >
-                            Reject
-                          </button>
-                        </div>
+{/* Table */}
+<section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+  <div className="flex items-center justify-between mb-3">
+    <h3 className="font-semibold">
+      {title} ({filteredForms.length})
+    </h3>
+  </div>
+
+  <div className="overflow-x-auto">
+    <table className="min-w-full text-sm border rounded-xl overflow-hidden">
+      <thead className="bg-gray-100 text-center">
+        <tr>
+          <th className="p-2 border">رقم التقرير</th>
+          <th className="p-2 border">التاريخ</th>
+          <th className="p-2 border">الفرع</th>
+          <th className="p-2 border">المستخدم</th>
+          <th className="p-2 border">نقدي</th>
+          <th className="p-2 border">تطبيقات</th>
+          <th className="p-2 border">بنك</th>
+          <th className="p-2 border">الإجمالي</th>
+          <th className="p-2 border">الحالة</th>
+          <th className="p-2 border">إجراءات</th>
+          <th className="p-2 border">عرض</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {loading ? (
+          <tr>
+            <td colSpan={11} className="p-4 text-center">
+              جاري التحميل…
+            </td>
+          </tr>
+        ) : filteredForms.length ? (
+          filteredForms.map((f) => (
+            <tr key={f._id} className="text-center hover:bg-gray-50">
+
+              {/* 🔢 رقم التقرير */}
+              <td className="p-2 border font-mono text-xs font-semibold text-indigo-700">
+                {f.serialNumber || "-"}
+              </td>
+
+              {/* 📅 التاريخ + وقت الإنشاء */}
+              <td className="p-2 border">
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="font-medium">
+                    {formatDateOnly(f.formDate)}
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    {f.createdAt
+                      ? new Date(f.createdAt).toLocaleTimeString("ar-EG", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
+                  </span>
+                </div>
+              </td>
+
+              {/* 🏢 الفرع */}
+              <td className="p-2 border">{f.branch?.name || "-"}</td>
+
+              {/* 👤 المستخدم */}
+              <td className="p-2 border">{f.user?.name || "-"}</td>
+
+              {/* 💰 الأرقام */}
+              <td className="p-2 border text-right">
+                {currency(f.cashCollection)}
+              </td>
+              <td className="p-2 border text-right">
+                {currency(appsWithFallback(f))}
+              </td>
+              <td className="p-2 border text-right">
+                {currency(bankWithFallback(f))}
+              </td>
+              <td className="p-2 border font-bold text-right">
+                {currency(rowTotal(f))}
+              </td>
+
+              {/* 📌 الحالة + وقت الاعتماد */}
+              <td className="p-2 border">
+                <div className="flex flex-col items-center gap-0.5">
+                  <StatusPill status={f.branchManagerRelease?.status} />
+                  {f.branchManagerRelease?.at && (
+                    <span className="text-[11px] text-gray-500">
+                      {new Date(f.branchManagerRelease.at).toLocaleTimeString(
+                        "ar-EG",
+                        { hour: "2-digit", minute: "2-digit" }
                       )}
-                    </td>
-                    <td className="p-2 border">
-<button
-  onClick={() => {
-    setSelectedForm(f);
-    fetchAttachments(f._id);
-  }}
-  className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 shadow"
->
-  عرض / PDF
-</button>
+                    </span>
+                  )}
+                </div>
+              </td>
 
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={10} className="p-4 text-center text-gray-500">
-                    لا توجد نتائج
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              {/* ⚙️ إجراءات المدير */}
+              <td className="p-2 border">
+                {(!f.branchManagerRelease ||
+                  f.branchManagerRelease.status === "pending") && (
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => onAction(f, "release")}
+                      className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                    >
+                      Release
+                    </button>
+                    <button
+                      onClick={() => onAction(f, "reject")}
+                      className="px-2 py-1 text-xs bg-rose-600 text-white rounded hover:bg-rose-700"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </td>
 
-      {/* Details Modal */}
-      {selectedForm && (
-        <DetailsModal
-          form={selectedForm}
-          onClose={() => setSelectedForm(null)}
-          attachments={attachments}
-          attLoading={attLoading}
-          onAction={onAction}
-        />
-      )}
+              {/* 👁️ عرض */}
+              <td className="p-2 border">
+                <button
+                  onClick={() => {
+                    setSelectedForm(f);
+                    fetchAttachments(f._id);
+                  }}
+                  className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 shadow"
+                >
+                  عرض / PDF
+                </button>
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={11} className="p-4 text-center text-gray-500">
+              لا توجد نتائج
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{/* Details Modal */}
+{selectedForm && (
+  <DetailsModal
+    form={selectedForm}
+    onClose={() => setSelectedForm(null)}
+    attachments={attachments}
+    attLoading={attLoading}
+    onAction={onAction}
+  />
+)}
+
+{/* Review Modal */}
+{reviewTarget && (
+  <div className="fixed inset-0 z-[3000000000] bg-black/40 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-5">
+      <h3 className="text-lg font-bold mb-3 text-center">
+        {reviewAction === "release"
+          ? "إضافة ملاحظة (اختياري)"
+          : "سبب الرفض (إجباري)"}
+      </h3>
+
+      <textarea
+        className="w-full border rounded-xl p-3 text-sm min-h-[110px] focus:ring-2 focus:ring-emerald-400 outline-none"
+        placeholder={
+          reviewAction === "release"
+            ? "اكتب ملاحظتك للمحاسب (اختياري)"
+            : "اكتب سبب الرفض هنا..."
+        }
+        value={reviewNote}
+        onChange={(e) => setReviewNote(e.target.value)}
+      />
+
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          onClick={() => {
+            setReviewTarget(null);
+            setReviewNote("");
+            setReviewAction("");
+          }}
+          className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+        >
+          إلغاء
+        </button>
+        <button
+          onClick={confirmAction}
+          className={`px-4 py-2 rounded-xl text-white ${
+            reviewAction === "release"
+              ? "bg-emerald-600 hover:bg-emerald-700"
+              : "bg-rose-600 hover:bg-rose-700"
+          }`}
+        >
+          تأكيد
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Review Modal */}
-      {reviewTarget && (
-        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+ {reviewTarget && (
+  <div className="fixed inset-0 z-[3000000000] bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-5">
             <h3 className="text-lg font-bold mb-3 text-center">
               {reviewAction === "release"
@@ -1120,21 +1239,35 @@ function AllAnalyticsTab({ api }) {
   }, [forms, filters]);
 
   // Totals for cards
-  const totals = useMemo(() => {
-    return filteredForms.reduce(
-      (acc, f) => {
-        const cash = Number(f?.cashCollection || 0);
-        const apps = appsWithFallback(f);
-        const bank = bankWithFallback(f);
-        acc.cash += cash;
-        acc.apps += apps;
-        acc.bank += bank;
-        acc.total += cash + apps + bank;
-        return acc;
-      },
-      { cash: 0, apps: 0, bank: 0, total: 0 }
-    );
-  }, [filteredForms]);
+const totals = useMemo(() => {
+  return filteredForms.reduce(
+    (acc, f) => {
+      const cash = Number(f?.cashCollection || 0);
+      const apps = appsWithFallback(f);
+      const bank = bankWithFallback(f);
+      const purchases = Number(f?.purchases || 0);
+      const petty = Number(f?.pettyCash || 0);
+
+      acc.cash += cash;
+      acc.apps += apps;
+      acc.bank += bank;
+      acc.purchases += purchases;
+      acc.petty += petty;
+      acc.total += cash + apps + bank;
+
+      return acc;
+    },
+    {
+      cash: 0,
+      apps: 0,
+      bank: 0,
+      purchases: 0,
+      petty: 0,
+      total: 0,
+    }
+  );
+}, [filteredForms]);
+
 
   const statusCounts = useMemo(() => {
     const c = { pending: 0, released: 0, rejected: 0 };
@@ -1280,12 +1413,15 @@ function AllAnalyticsTab({ api }) {
       {/* Totals */}
       <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
         <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <MiniTotal title="نقدي" value={currency(totals.cash)} />
-          <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
-          <MiniTotal title="البنك" value={currency(totals.bank)} />
-          <MiniTotal title="إجمالي المبيعات" value={currency(totals.total)} />
-        </div>
+<div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
+  <MiniTotal title="نقدي" value={currency(totals.cash)} />
+  <MiniTotal title="تطبيقات" value={currency(totals.apps)} />
+  <MiniTotal title="البنك" value={currency(totals.bank)} />
+  <MiniTotal title="المشتريات" value={currency(totals.purchases)} />
+  <MiniTotal title="العهدة" value={currency(totals.petty)} />
+  <MiniTotal title="إجمالي المبيعات" value={currency(totals.total)} />
+</div>
+
       </section>
 
       {/* Filters — واضحة دائمًا */}
@@ -1374,14 +1510,27 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
           </div>
 
           {/* Basic Info */}
-          <div className="space-y-1 text-sm bg-gray-50 p-3 rounded-xl mb-4">
-            <p><b>التاريخ:</b> {formatDateOnly(form.formDate)}</p>
-            <p><b>الفرع:</b> {form.branch?.name}</p>
-            <p><b>المستخدم:</b> {form.user?.name}</p>
-            <p><b>العهدة:</b> {currency(form.pettyCash)}</p>
-            <p><b>المشتريات:</b> {currency(form.purchases)}</p>
-            <p><b>ملاحظات المستخدم:</b> {form.notes || "-"}</p>
-          </div>
+{/* Basic Info */}
+<div className="space-y-1 text-sm bg-gray-50 p-3 rounded-xl mb-4">
+  <p><b>رقم التقرير:</b> {form.serialNumber}</p>
+  <p><b>التاريخ:</b> {formatDateOnly(form.formDate)}</p>
+  {/*<p>
+    <b>وقت الإنشاء:</b>{" "}
+    {new Date(form.createdAt).toLocaleString("ar-EG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    })}
+  </p>*/}
+  <p><b>الفرع:</b> {form.branch?.name}</p>
+  <p><b>المستخدم:</b> {form.user?.name}</p>
+  <p><b>العهدة:</b> {currency(form.pettyCash)}</p>
+  <p><b>المشتريات:</b> {currency(form.purchases)}</p>
+  <p><b>ملاحظات المستخدم:</b> {form.notes || "-"}</p>
+</div>
+
+
+{/* Apps Breakdown */}
+
 
           {/* Apps Breakdown */}
           <div className="mb-4">
@@ -1464,6 +1613,9 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
             )}
           </div>
         </div>
+        {/* 🕒 Timeline */}
+<ReportTimeline form={form} />
+
 
         {/* Footer */}
         <div className="flex justify-end gap-2 mt-6">

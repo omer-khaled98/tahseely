@@ -39,6 +39,13 @@ const formSchema = new mongoose.Schema({
   bankTotal: { type: Number, default: 0 },
   totalSales: { type: Number, default: 0 },
 
+  serialNumber: {
+  type: String,
+  unique: true,
+  index: true,
+},
+
+
   // ===== Status =====
   status: {
     type: String,

@@ -1,6 +1,8 @@
 // src/pages/AdminDashboard.jsx — نسخة كاملة مع لوجز تشخيص + بدون تجميعات في تقارير الإدمن
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import MissingFormsReport from "../components/ui/MissingFormsReport";
+import SalesReport from "./SalesReport";
 import { useApi } from "../hooks/useApi";
 import {
   LayoutDashboard, Receipt, Users as UsersIcon, Building2, Layers3, LogOut,
@@ -113,7 +115,20 @@ const api = useApi();
             <NavBtn icon={<UsersIcon size={16} />} label="المستخدمون" active={tab==="users"} onClick={()=>setTab("users")} />
             <NavBtn icon={<Building2 size={16} />} label="الفروع" active={tab==="branches"} onClick={()=>setTab("branches")} />
             <NavBtn icon={<Layers3 size={16} />} label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
+            <NavBtn
+  icon={<FileText size={16} />}
+  label="تقرير المبيعات"
+  active={tab === "salesReport"}
+  onClick={() => setTab("salesReport")}
+/>
+
             {/*<NavBtn icon={<FileText size={16} />} label="تقارير الإدمن" active={tab==="adminReports"} onClick={()=>setTab("adminReports")} />*/}
+            <NavBtn
+  icon={<FileText size={16} />}
+  label="الأيام الناقصة"
+  active={tab === "missingForms"}
+  onClick={() => setTab("missingForms")}
+/>
             <NavBtn icon={<Layers3 size={16} />} label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} />
             <NavBtn icon={<Layers3 size={16} />} 
   label="ملخصات الإدارة" 
@@ -139,6 +154,17 @@ const api = useApi();
   <SmallNavBtn label="القوالب" active={tab==="templates"} onClick={()=>setTab("templates")} />
   <SmallNavBtn label="كل الفواتير" active={tab==="allForms"} onClick={()=>setTab("allForms")} />
   <SmallNavBtn label="ملخصات الإدارة" active={tab==="adminSummary"} onClick={()=>setTab("adminSummary")} />
+    <SmallNavBtn
+  label="تقرير المبيعات"
+  active={tab === "salesReport"}
+  onClick={() => setTab("salesReport")}
+/>
+
+    <SmallNavBtn
+  label="الأيام الناقصة"
+  active={tab === "missingForms"}
+  onClick={() => setTab("missingForms")}
+/>
 </div>
 
       </header>
@@ -153,7 +179,13 @@ const api = useApi();
         {tab === "adminReports" && <AdminReports api={api} isAdmin={isAdmin} />}
         {tab === "allForms" && <AllFormsPage api={api} isAdmin={isAdmin} />}
         {tab === "adminSummary" && <AdminSummary api={api} isAdmin={isAdmin} />}
+        {tab === "salesReport" && (
+  <SalesReport api={api} isAdmin={isAdmin} />
+)}
 
+          {tab === "missingForms" && (
+    <MissingFormsReport />
+  )}
       </main>
     </div>
   );

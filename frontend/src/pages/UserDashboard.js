@@ -168,89 +168,108 @@ const actualSalesAuto = useMemo(
 const handleSubmit = async (e) => {
   e.preventDefault();
 
-  // ✅ رسالة تأكيد قبل الإرسال
-  const isConfirmed = window.confirm(
-    "هل أنت متأكد من إرسال التقرير ورفع جميع المرفقات؟"
-  );
-  if (!isConfirmed) return;
+  toast(
+    (t) => (
+      <div className="flex flex-col gap-3">
+        <div className="text-sm font-semibold text-gray-800">
+          هل أنت متأكد من إرسال التقرير ورفع جميع المرفقات؟
+        </div>
 
-  try {
-    const appsPayload = applications
-      .filter((x) => x.templateId && Number(x.amount) > 0)
-      .map((x) => ({
-        template: x.templateId,
-        name: x.name,
-        amount: Number(x.amount),
-      }));
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50"
+          >
+            إلغاء
+          </button>
 
-    const bankPayload = bankCollections
-      .filter((x) => x.templateId && Number(x.amount) > 0)
-      .map((x) => ({
-        template: x.templateId,
-        name: x.name,
-        amount: Number(x.amount),
-      }));
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
 
-    const payload = {
-      ...formData,
-      formDate: new Date(formData.formDate),
-      applications: appsPayload,
-      bankCollections: bankPayload,
-      appsCollection: appsTotal,
-      actualSales: actualSalesAuto, // ✅ اعتماد القيمة المحسوبة فقط
-    };
+              try {
+                const appsPayload = applications
+                  .filter((x) => x.templateId && Number(x.amount) > 0)
+                  .map((x) => ({
+                    template: x.templateId,
+                    name: x.name,
+                    amount: Number(x.amount),
+                  }));
 
-    // 1️⃣ إنشاء الفورم
-    const res = await api.post("/api/forms", payload);
-    const createdForm = res.data;
-    toast.success(" تم إنشاء الفورم بنجاح");
+                const bankPayload = bankCollections
+                  .filter((x) => x.templateId && Number(x.amount) > 0)
+                  .map((x) => ({
+                    template: x.templateId,
+                    name: x.name,
+                    amount: Number(x.amount),
+                  }));
 
-    // 2️⃣ رفع المرفقات المرتبطة
-    for (const [key, fileList] of Object.entries(files)) {
-      if (fileList && fileList.length > 0) {
-        const formDataUpload = new FormData();
+                const payload = {
+                  ...formData,
+                  formDate: new Date(formData.formDate),
+                  applications: appsPayload,
+                  bankCollections: bankPayload,
+                  appsCollection: appsTotal,
+                  actualSales: actualSalesAuto,
+                };
 
-        // 🟢 رفع كل الملفات مع نفس المفاتيح
-        for (const file of fileList) {
-          formDataUpload.append("file", file);
-        }
+                const res = await api.post("/api/forms", payload);
+                const createdForm = res.data;
 
-        formDataUpload.append("form", createdForm._id);
-        formDataUpload.append("type", key);
+                toast.success(
+                  ` تم إنشاء التقرير بنجاح\nرقم التقرير: ${createdForm.serialNumber}`
+                );
 
-        try {
-          await api.post("/api/documents", formDataUpload, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          toast.success(
-            `📎 تم رفع ${fileList.length} مرفق/مرفقات (${key}) بنجاح`
-          );
-        } catch (err) {
-          console.error("❌ Error uploading files:", err?.response || err);
-          toast.error(`حدث خطأ أثناء رفع مرفقات ${key}`);
-        }
-      }
+                for (const [key, fileList] of Object.entries(files)) {
+                  if (fileList && fileList.length > 0) {
+                    const formDataUpload = new FormData();
+                    for (const file of fileList) {
+                      formDataUpload.append("file", file);
+                    }
+                    formDataUpload.append("form", createdForm._id);
+                    formDataUpload.append("type", key);
+
+                    await api.post("/api/documents", formDataUpload, {
+                      headers: { "Content-Type": "multipart/form-data" },
+                    });
+                  }
+                }
+
+                setForms((prev) => [...prev, createdForm]);
+                setFormData((d) => ({
+                  ...d,
+                  pettyCash: "",
+                  purchases: "",
+                  cashCollection: "",
+                  actualSales: 0,
+                  notes: "",
+                }));
+                setApplications([]);
+                setBankCollections([]);
+                setFiles({});
+                setResetKey((prev) => prev + 1);
+              } catch (err) {
+                console.error(" Error creating form:", err?.response || err);
+                toast.error(
+                  err?.response?.data?.message ||
+                    "حصل خطأ أثناء إنشاء الفورم"
+                );
+              }
+            }}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+          >
+            تأكيد الإرسال
+          </button>
+        </div>
+      </div>
+    ),
+    {
+      duration: Infinity,
+      position: "top-center",
     }
-
-    // 3️⃣ Reset بعد النجاح
-    setForms((prev) => [...prev, createdForm]);
-    setFormData((d) => ({
-      ...d,
-      pettyCash: "",
-      purchases: "",
-      cashCollection: "",
-      actualSales: 0,
-      notes: "",
-    }));
-    setApplications([]);
-    setBankCollections([]);
-    setFiles({});
-    setResetKey((prev) => prev + 1);
-  } catch (err) {
-    console.error("❌ Error creating form:", err?.response || err);
-    toast.error(err?.response?.data?.message || "حصل خطأ أثناء إنشاء الفورم");
-  }
+  );
 };
+
 
 
   // ---------------- إجمالي المبيعات اليومية ----------------
@@ -488,6 +507,7 @@ const handleSubmit = async (e) => {
                 </label>
                 <input
                   type="number"
+  step="0.01"
                   value={actualSalesAuto}
                   disabled
                   className="border p-2 rounded-xl w-full bg-gray-100 text-gray-600 cursor-not-allowed"
@@ -572,6 +592,7 @@ const handleSubmit = async (e) => {
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-100">
                     <tr>
+                      <th className="p-2 border">رقم التقرير</th>
                       <th className="p-2 border">التاريخ</th>
                       <th className="p-2 border">الفرع</th>
                       <th className="p-2 border">المستخدم</th>
@@ -585,13 +606,31 @@ const handleSubmit = async (e) => {
                     </tr>
                   </thead>
                   <tbody>
+                    
                     {filteredForms.map((f) => (
                       <tr key={f._id} className="text-center">
-                        <td className="p-2 border">
-                          {f.formDate
-                            ? new Date(f.formDate).toLocaleDateString()
-                            : "-"}
-                        </td>
+                        <td className="p-2 border font-mono text-xs">
+  {f.serialNumber || "-"}
+</td>
+
+<td className="p-2 border text-center">
+  <div className="flex flex-col items-center leading-tight">
+    <span className="font-medium">
+      {new Date(f.formDate).toLocaleDateString("ar-EG")}
+    </span>
+    <span className="mt-1 text-[11px] text-gray-500 flex items-center gap-1">
+      
+      {f.uploadedAt
+        ? new Date(f.uploadedAt).toLocaleTimeString("ar-EG", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "-"}
+    </span>
+  </div>
+</td>
+
+                        
                         <td className="p-2 border">{f.branch?.name || "-"}</td>
                         <td className="p-2 border">{f.user?.name || "-"}</td>
                         <td className="p-2 border">{f.pettyCash}</td>
@@ -631,10 +670,10 @@ const handleSubmit = async (e) => {
                 </table>
               </div>
 
-              <div className="mt-4 p-4 bg-emerald-50 rounded-xl font-bold text-right">
+              {/*<div className="mt-4 p-4 bg-emerald-50 rounded-xl font-bold text-right">
                 ملخص التقارير (إجمالي المبيعات):{" "}
                 {totalDailySales.toLocaleString()}
-              </div>
+              </div>*/}
             </>
           )}
         </section>
@@ -773,6 +812,7 @@ function UploadBox({ label, value, onChange, fileKey, setFiles }) {
 
       <input
         type="number"
+  step="0.01"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="border p-2 rounded-xl w-full mb-3 text-right focus:ring-2 focus:ring-emerald-400 focus:outline-none"
@@ -859,6 +899,7 @@ function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) 
           </select>
           <input
             type="number"
+  step="0.01"
             value={row.amount}
             onChange={(e) => {
               const next = [...rows];

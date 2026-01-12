@@ -1,6 +1,8 @@
 // src/pages/AccountantDashboard.js
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "../hooks/useApi";
+import ReportTimeline from "../components/ui/ReportTimeline";
+
 import {
   LogOut,
   Filter,
@@ -652,111 +654,197 @@ export default function AccountantDashboard() {
         </section>
 
         {/* Table */}
-        <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">التاريخ</th>
-                  <th className="p-2 border">الفرع</th>
-                  <th className="p-2 border">المستخدم</th>
-                  <th className="p-2 border">نقدي</th>
-                  <th className="p-2 border">تطبيقات</th>
-                  <th className="p-2 border">بنك</th>
-                  <th className="p-2 border">المشتريات</th>
-                  <th className="p-2 border">إجمالي البيع</th>
-                  <th className="p-2 border">حالة المدير</th>
-                  <th className="p-2 border">ملاحظات المدير</th>
-                  <th className="p-2 border">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={11} className="p-6 text-center text-gray-500 italic">
-                      جاري تحميل البيانات...
-                    </td>
-                  </tr>
-                ) : paginatedForms.length ? (
-                  paginatedForms.map((f) => {
-                    const accountantStatus = f.accountantRelease?.status || "pending";
-                    const mgrStatus = f.branchManagerRelease?.status;
-                    const rowBg =
-                      accountantStatus === "rejected" || mgrStatus === "rejected" ? "bg-red-50" :
-                      accountantStatus === "released" ? "bg-green-50" :
-                      "bg-yellow-50";
-                    const showActions = accountantStatus === "pending";
+<section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+  <div className="overflow-x-auto">
+    <table className="min-w-full text-sm border rounded-xl overflow-hidden">
+      <thead className="bg-gray-100">
+        <tr className="text-center">
+          <th className="p-2 border">رقم التقرير</th>
+          <th className="p-2 border">التاريخ</th>
+          <th className="p-2 border">الفرع</th>
+          <th className="p-2 border">المستخدم</th>
+          <th className="p-2 border">نقدي</th>
+          <th className="p-2 border">تطبيقات</th>
+          <th className="p-2 border">بنك</th>
+          <th className="p-2 border">المشتريات</th>
+          <th className="p-2 border">إجمالي البيع</th>
+          <th className="p-2 border">اعتماد المحاسب</th>
+          <th className="p-2 border">حالة المدير</th>
+          <th className="p-2 border">ملاحظات المدير</th>
+          <th className="p-2 border">إجراءات</th>
+        </tr>
+      </thead>
 
-                    return (
-                      <tr key={f._id} className={`text-center ${rowBg}`}>
-                        <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
-                        <td className="p-2 border">{f.branch?.name || "-"}</td>
-                        <td className="p-2 border">{f.user?.name || "-"}</td>
-                        <td className="p-2 border">{currency(f.cashCollection)}</td>
-                        <td className="p-2 border">{currency(appsWithFallback(f))}</td>
-                        <td className="p-2 border">{currency(bankWithFallback(f))}</td>
-                        <td className="p-2 border">{currency(f.purchases)}</td>
-                        <td className="p-2 border font-semibold">{currency(salesOnlyTotal(f))}</td>
-                        <td className="p-2 border font-medium">
-                          {mgrStatus === "released" ? (
-                            <span className="text-emerald-600">تم الاعتماد</span>
-                          ) : mgrStatus === "rejected" ? (
-                            <span className="text-rose-600">مرفوض</span>
-                          ) : (
-                            <span className="text-amber-600">قيد المراجعة</span>
-                          )}
-                        </td>
-                        <td className="p-2 border whitespace-pre-wrap text-left text-gray-700">
-                          {f.branchManagerRelease?.note || "-"}
-                        </td>
-                        <td className="p-2 border space-y-1">
-                          <button
-                            onClick={() => openDetails(f)}
-                            className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                          >
-                            تفاصيل
-                          </button>
+      <tbody>
+        {loading ? (
+          <tr>
+            <td colSpan={13} className="p-6 text-center text-gray-500 italic">
+              جاري تحميل البيانات...
+            </td>
+          </tr>
+        ) : paginatedForms.length ? (
+          paginatedForms.map((f) => {
+            const accountantStatus = f.accountantRelease?.status || "pending";
+            const mgrStatus = f.branchManagerRelease?.status;
 
-                          {/* ✅ أزرار موافقة/رفض تظهر فقط لو حالة المحاسب pending */}
-                          {showActions && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setActionType("approve");
-                                  setActionTargetId(f._id);
-                                  setActionNote("");
-                                }}
-                                className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                              >
-                                موافقة
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setActionType("reject");
-                                  setActionTargetId(f._id);
-                                  setActionNote("");
-                                }}
-                                className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700"
-                              >
-                                رفض
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={11} className="p-6 text-center text-gray-500 italic">
-                      لا توجد نتائج مطابقة
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+            const rowBg =
+              accountantStatus === "rejected" || mgrStatus === "rejected"
+                ? "bg-red-50"
+                : accountantStatus === "released"
+                ? "bg-green-50"
+                : "bg-yellow-50";
+
+            const showActions = accountantStatus === "pending";
+
+            return (
+              <tr key={f._id} className={`text-center ${rowBg}`}>
+
+                {/* 🔢 رقم التقرير */}
+                <td className="p-2 border font-mono text-xs font-semibold text-indigo-700">
+                  {f.serialNumber || "-"}
+                </td>
+
+                {/* 📅 التاريخ + وقت الإنشاء */}
+<td className="p-2 border">
+  <div className="flex flex-col items-center leading-tight">
+    {/* 📅 تاريخ التقرير */}
+    <span className="font-medium">
+      {formatDateOnly(f.formDate)}
+    </span>
+
+    {/* ⏰ وقت الإنشاء فقط */}
+    <span className="text-[11px] text-gray-500">
+      {f.createdAt
+        ? new Date(f.createdAt).toLocaleTimeString("ar-EG", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "-"}
+    </span>
+  </div>
+</td>
+
+
+                {/* 🏢 الفرع */}
+                <td className="p-2 border">{f.branch?.name || "-"}</td>
+
+                {/* 👤 المستخدم */}
+                <td className="p-2 border">{f.user?.name || "-"}</td>
+
+                {/* 💰 أرقام */}
+                <td className="p-2 border text-right">{currency(f.cashCollection)}</td>
+                <td className="p-2 border text-right">{currency(appsWithFallback(f))}</td>
+                <td className="p-2 border text-right">{currency(bankWithFallback(f))}</td>
+                <td className="p-2 border text-right">{currency(f.purchases)}</td>
+
+                {/* 📊 إجمالي */}
+                <td className="p-2 border font-bold text-right">
+                  {currency(salesOnlyTotal(f))}
+                </td>
+
+                {/* ✅ اعتماد المحاسب */}
+<td className="p-2 border">
+  {accountantStatus === "released" ? (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+        معتمد
+      </span>
+      <span className="text-[11px] text-gray-500">
+        {f.accountantRelease?.at
+          ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-"}
+      </span>
+    </div>
+  ) : accountantStatus === "rejected" ? (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-700">
+        مرفوض
+      </span>
+      <span className="text-[11px] text-gray-500">
+        {f.accountantRelease?.at
+          ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-"}
+      </span>
+    </div>
+  ) : (
+    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
+      قيد المراجعة
+    </span>
+  )}
+</td>
+
+
+                {/* 👔 اعتماد المدير */}
+                <td className="p-2 border">
+                  {mgrStatus === "released" ? (
+                    <span className="text-emerald-600 font-medium">تم الاعتماد</span>
+                  ) : mgrStatus === "rejected" ? (
+                    <span className="text-rose-600 font-medium">مرفوض</span>
+                  ) : (
+                    <span className="text-amber-600 font-medium">قيد المراجعة</span>
+                  )}
+                </td>
+
+                {/* 📝 ملاحظات المدير */}
+                <td className="p-2 border whitespace-pre-wrap text-left text-gray-700 max-w-[220px]">
+                  {f.branchManagerRelease?.note || "-"}
+                </td>
+
+                {/* ⚙️ إجراءات */}
+                <td className="p-2 border space-y-1">
+                  <button
+                    onClick={() => openDetails(f)}
+                    className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs"
+                  >
+                    تفاصيل
+                  </button>
+
+                  {showActions && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setActionType("approve");
+                          setActionTargetId(f._id);
+                          setActionNote("");
+                        }}
+                        className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-xs"
+                      >
+                        موافقة
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActionType("reject");
+                          setActionTargetId(f._id);
+                          setActionNote("");
+                        }}
+                        className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700 text-xs"
+                      >
+                        رفض
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })
+        ) : (
+          <tr>
+            <td colSpan={13} className="p-6 text-center text-gray-500 italic">
+              لا توجد نتائج مطابقة
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -791,32 +879,65 @@ export default function AccountantDashboard() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3">
           <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b rounded-t-2xl p-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-base font-bold">
-                  تفاصيل تقرير{" "}
-                  <span className="text-indigo-600">{selectedForm.branch?.name || "-"}</span>{" "}
-                  — {formatDateOnly(selectedForm.formDate)}
-                </h3>
-                <p className="text-xs text-gray-500">مؤسسة الحواس</p>
-              </div>
-              <div className="flex gap-2" data-html2canvas-ignore>
-                <button
-                  onClick={handleExportPDF}
-                  className="px-3 py-1.5 rounded-xl bg-gray-900 text-white hover:bg-black text-sm inline-flex items-center gap-1"
-                >
-                  <Download size={14} />
-                  تصدير PDF
-                </button>
-                <button
-                  onClick={closeDetails}
-                  className="border px-3 py-1.5 rounded-xl hover:bg-gray-50 text-sm inline-flex items-center gap-1"
-                >
-                  <X size={14} />
-                  إغلاق
-                </button>
-              </div>
-            </div>
+<div className="sticky top-0 bg-white border-b rounded-t-2xl p-4 flex justify-between items-center">
+  <div className="space-y-1">
+    {/* 🧾 سيريال التقرير */}
+    <h3 className="text-base font-bold flex items-center gap-2">
+      تقرير رقم
+      <span className="text-indigo-600 font-mono">
+        {selectedForm.serialNumber || "-"}
+      </span>
+    </h3>
+
+    {/* 🏢 الفرع + تاريخ التقرير */}
+    <div className="text-sm text-gray-700">
+      {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
+    </div>
+
+    {/* ⏰ توقيتات */}
+    {/*<div className="text-xs text-gray-500 space-y-0.5">
+      <div>
+        تم الإنشاء:
+        <span className="ml-1 font-medium">
+          {selectedForm.createdAt
+            ? new Date(selectedForm.createdAt).toLocaleTimeString("ar-EG", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "-"}
+        </span>
+      </div>
+
+      {selectedForm.accountantRelease?.at && (
+        <div>
+          اعتماد المحاسب:
+          <span className="ml-1 font-medium text-emerald-700">
+            {new Date(selectedForm.accountantRelease.at).toLocaleTimeString(
+              "ar-EG",
+              { hour: "2-digit", minute: "2-digit" }
+            )}
+          </span>
+        </div>
+      )}
+    </div>*/}
+  </div>
+
+  <div className="flex gap-2" data-html2canvas-ignore>
+    <button
+      onClick={handleExportPDF}
+      className="px-3 py-1.5 rounded-xl bg-gray-900 text-white hover:bg-black text-sm inline-flex items-center gap-1"
+    >
+      تصدير PDF
+    </button>
+    <button
+      onClick={closeDetails}
+      className="border px-3 py-1.5 rounded-xl hover:bg-gray-50 text-sm inline-flex items-center gap-1"
+    >
+      إغلاق
+    </button>
+  </div>
+</div>
+
 
             {/* Body */}
             <div ref={modalRef} className="max-h-[85vh] overflow-y-auto">
@@ -963,6 +1084,11 @@ export default function AccountantDashboard() {
     <div className="text-sm text-gray-500">لا توجد مرفقات</div>
   )}
 </div>
+{/* 🕒 Timeline */}
+<div className="px-4 sm:px-6 mt-4">
+  <ReportTimeline form={selectedForm} />
+</div>
+
 
 
                 {/* Edit/Resubmit actions (only if rejected by manager) */}
@@ -1015,6 +1141,8 @@ export default function AccountantDashboard() {
                                   />
                                   <input
                                     type="number"
+                                      step="0.01"
+  inputMode="decimal"
                                     value={a.amount}
                                     onChange={(e) => changeAppLine(idx, "amount", e.target.value)}
                                     className="border rounded-lg px-2 py-1 w-32 text-right"
@@ -1053,6 +1181,8 @@ export default function AccountantDashboard() {
                                   />
                                   <input
                                     type="number"
+                                      step="0.01"
+  inputMode="decimal"
                                     value={b.amount}
                                     onChange={(e) => changeBankLine(idx, "amount", e.target.value)}
                                     className="border rounded-lg px-2 py-1 w-32 text-right"
@@ -1200,8 +1330,9 @@ export default function AccountantDashboard() {
       )}
 
       {/* ===== Action Modal: Approve / Reject with Textarea ===== */}
-      {actionType && (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-3">
+{actionType && (
+  <div className="fixed inset-0 z-[3000000000] bg-black/50 flex items-center justify-center p-3">
+
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border">
             {/* Header */}
             <div className="px-4 py-3 border-b flex items-center justify-between">
@@ -1325,6 +1456,8 @@ function NumberInput({ value, onChange, placeholder = "0" }) {
   return (
     <input
       type="number"
+        step="0.01"
+  inputMode="decimal"
       value={value}
       onChange={(e) => onChange(Number(e.target.value || 0))}
       placeholder={placeholder}

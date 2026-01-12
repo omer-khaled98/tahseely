@@ -41,6 +41,7 @@ app.use("/api/documents", require("./routes/documentRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/report-templates", require("./routes/templateRoutes"));
 app.use("/api/review", require("./routes/reviewRoutes"));
+app.use("/api/admin", require("./routes/adminReportRoutes"));
 
 // ✅ Route للتأكيد
 app.get("/", (req, res) => {
