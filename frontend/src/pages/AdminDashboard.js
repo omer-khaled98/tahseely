@@ -1,7 +1,8 @@
 // src/pages/AdminDashboard.jsx — نسخة كاملة مع لوجز تشخيص + بدون تجميعات في تقارير الإدمن
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef , useState } from "react";
 import axios from "axios";
 import MissingFormsReport from "../components/ui/MissingFormsReport";
+import AdminBackupsPage from "./AdminBackupsPage";
 import SalesReport from "./SalesReport";
 import { useApi } from "../hooks/useApi";
 import {
@@ -136,6 +137,13 @@ const api = useApi();
   onClick={()=>setTab("adminSummary")} />
 
           </nav>
+          <NavBtn
+  icon={<Download size={16} />}
+  label="النسخ الاحتياطية"
+  active={tab === "backups"}
+  onClick={() => setTab("backups")}
+/>
+
 
           <div className="flex items-center gap-4">
             <span className="hidden md:inline text-sm text-gray-600">مرحباً، <b>{meName}</b></span>
@@ -165,7 +173,15 @@ const api = useApi();
   active={tab === "missingForms"}
   onClick={() => setTab("missingForms")}
 />
+
+<SmallNavBtn
+  label="النسخ الاحتياطية"
+  active={tab === "backups"}
+  onClick={() => setTab("backups")}
+/>
 </div>
+
+
 
       </header>
 
@@ -179,6 +195,7 @@ const api = useApi();
         {tab === "adminReports" && <AdminReports api={api} isAdmin={isAdmin} />}
         {tab === "allForms" && <AllFormsPage api={api} isAdmin={isAdmin} />}
         {tab === "adminSummary" && <AdminSummary api={api} isAdmin={isAdmin} />}
+        {tab === "backups" && <AdminBackupsPage api={api} isAdmin={isAdmin} />}
         {tab === "salesReport" && (
   <SalesReport api={api} isAdmin={isAdmin} />
 )}
@@ -1777,24 +1794,43 @@ function AdminReports({ api }) {
   );
 }
 
-
-/* ---------------- FIXED & ENHANCED + STATUS FILTER: AllFormsPage ---------------- */
+/* ---------------- مُحسن: AllFormsPage (لوحة تحكم الأدمن) ---------------- */
 
 function AllFormsPage({ api, isAdmin }) {
   const [rows, setRows] = useState([]);
-  const [filters, setFilters] = useState({ q: "", branchId: "", userId: "", status: "" });
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+
+  // filters (كما يتوقعها الباك اند)
+  const [filters, setFilters] = useState({
+    q: "",
+    branchId: "",
+    userId: "",
+    status: "", // pending | waitingBranch | released | rejected | ""
+  });
+
+  // بحث متأخر (debounce)
+  const [qInput, setQInput] = useState("");
+  const qTimer = useRef(null);
+
+  // فرز
+  const [sortDir, setSortDir] = useState("desc"); // desc أحدث أولًا
+
+  // modal
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [activeFormId, setActiveFormId] = useState(null);
+  const [activeForm, setActiveForm] = useState(null);
+  const [activeDocs, setActiveDocs] = useState([]);
+
+  // تبويبات داخل المودال
+  const [modalTab, setModalTab] = useState("summary"); // summary | details | attachments | timeline
 
   useEffect(() => {
     (async () => {
       try {
-        const [b, u] = await Promise.all([
-          api.get("/api/branches"),
-          api.get("/api/users"),
-        ]);
+        const [b, u] = await Promise.all([api.get("/api/branches"), api.get("/api/users")]);
         setBranches(b.data || []);
         setUsers(u.data || []);
       } catch (e) {
@@ -1803,33 +1839,37 @@ function AllFormsPage({ api, isAdmin }) {
     })();
   }, [api]);
 
+  // debounce q
+  useEffect(() => {
+    if (qTimer.current) clearTimeout(qTimer.current);
+    qTimer.current = setTimeout(() => {
+      setFilters((p) => ({ ...p, q: qInput }));
+    }, 350);
+
+    return () => {
+      if (qTimer.current) clearTimeout(qTimer.current);
+    };
+  }, [qInput]);
+
+  const cleanParams = (obj) => {
+    const p = { ...obj };
+    Object.keys(p).forEach((k) => {
+      const v = p[k];
+      if (v === "" || v === null || v === undefined) delete p[k];
+    });
+    return p;
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const params = { ...filters };
-
-      if (filters.status === "pending") {
-        params["accountantRelease.status"] = "pending";
-      } else if (filters.status === "waitingBranch") {
-        params["accountantRelease.status"] = "released";
-        params["branchManagerRelease.status"] = "pending";
-      } else if (filters.status === "released") {
-        params["adminRelease.status"] = "released";
-        params.status = "released";
-      } else if (filters.status === "rejected") {
-        params.$or = [
-          { "accountantRelease.status": "rejected" },
-          { "branchManagerRelease.status": "rejected" },
-          { "adminRelease.status": "rejected" },
-          { status: "rejected" },
-        ];
-      }
-
+      const params = cleanParams(filters);
       const res = await api.get("/api/forms/all", { params });
       setRows(res.data || []);
-      console.log("[AllForms] count =", res.data?.length, "| filters =", params);
+      // console.log("[AllForms] count =", res.data?.length, "| filters =", params);
     } catch (e) {
       console.error("[AllForms] error", e?.response?.data || e?.message);
+      toast.error("حصل خطأ أثناء تحميل الفواتير ❌");
     } finally {
       setLoading(false);
     }
@@ -1837,74 +1877,400 @@ function AllFormsPage({ api, isAdmin }) {
 
   useEffect(() => {
     fetchAll();
-  }, [filters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.branchId, filters.userId, filters.status, filters.q]);
+
+  // ---------- أدوات عرض ----------
+  const fmtSAR = (n) => {
+    const x = Number(n || 0);
+    try {
+      return new Intl.NumberFormat("ar-SA", {
+        style: "currency",
+        currency: "SAR",
+        maximumFractionDigits: 2,
+      }).format(x);
+    } catch {
+      return `${x} ر.س`;
+    }
+  };
+
+  const formatDateOnly = (d) => (d ? new Date(d).toLocaleDateString("ar-SA") : "—");
+  const formatDateTime = (d) => (d ? new Date(d).toLocaleString("ar-SA") : "—");
+
+  // آخر إجراء (لإظهار “آخر تحديث”)
+  const lastActionAt = (f) => {
+    const candidates = [
+      f?.adminRelease?.at,
+      f?.branchManagerRelease?.at,
+      f?.accountantRelease?.at,
+      f?.uploadedAt,
+      f?.updatedAt,
+      f?.createdAt,
+    ]
+      .map((x) => (x ? new Date(x).getTime() : 0))
+      .filter((t) => t > 0);
+    if (!candidates.length) return null;
+    return new Date(Math.max(...candidates)).toISOString();
+  };
+
+  // حالة الفاتورة (للعرض)
+  const statusKey = (f) => {
+    if (f?.status === "rejected") return "rejected";
+    if (f?.adminRelease?.status === "released") return "released";
+    if (f?.accountantRelease?.status !== "released") return "pending"; // في انتظار المحاسب
+    if (f?.branchManagerRelease?.status !== "released") return "waitingBranch"; // في انتظار مدير الفرع
+    if (f?.adminRelease?.status !== "released") return "waitingAdmin"; // في انتظار الأدمن
+    return "pending";
+  };
+
+  const statusBadge = (f) => {
+    const k = statusKey(f);
+    const base = "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border";
+
+    if (k === "pending")
+      return (
+        <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}>
+          <i className="fas fa-user-tie" /> قيد مراجعة المحاسب
+        </span>
+      );
+
+    if (k === "waitingBranch")
+      return (
+        <span className={`${base} bg-blue-50 text-blue-700 border-blue-200`}>
+          <i className="fas fa-user-shield" /> قيد مراجعة مدير الفرع
+        </span>
+      );
+
+    if (k === "waitingAdmin")
+      return (
+        <span className={`${base} bg-violet-50 text-violet-700 border-violet-200`}>
+          <i className="fas fa-user-cog" /> قيد مراجعة الأدمن
+        </span>
+      );
+
+    if (k === "released")
+      return (
+        <span className={`${base} bg-green-50 text-green-700 border-green-200`}>
+          <i className="fas fa-check-circle" /> معتمدة نهائيًا
+        </span>
+      );
+
+    return (
+      <span className={`${base} bg-rose-50 text-rose-700 border-rose-200`}>
+        <i className="fas fa-times-circle" /> مرفوضة
+      </span>
+    );
+  };
+
+  // ---------- ترتيب ----------
+  const sortedRows = useMemo(() => {
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const ta = new Date(a?.formDate || a?.createdAt || 0).getTime();
+      const tb = new Date(b?.formDate || b?.createdAt || 0).getTime();
+      return sortDir === "desc" ? tb - ta : ta - tb;
+    });
+    return copy;
+  }, [rows, sortDir]);
+
+  // ---------- إحصائيات ----------
+  const totals = useMemo(() => {
+    const t = {
+      all: rows.length,
+      pending: 0,
+      waitingBranch: 0,
+      waitingAdmin: 0,
+      released: 0,
+      rejected: 0,
+    };
+    rows.forEach((r) => {
+      const k = statusKey(r);
+      t[k] = (t[k] || 0) + 1;
+    });
+    return t;
+  }, [rows]);
+
+  // ---------- معاينة ----------
+  const openPreview = async (id) => {
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setActiveFormId(id);
+    setActiveForm(null);
+    setActiveDocs([]);
+    setModalTab("summary");
+
+    try {
+      const [formRes, docsRes] = await Promise.all([
+        api.get(`/api/forms/${id}`),
+        api.get(`/api/documents/${id}`),
+      ]);
+
+      setActiveForm(formRes.data || null);
+      setActiveDocs(docsRes.data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error("فشل تحميل تفاصيل الفاتورة ❌");
+      setPreviewOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setActiveFormId(null);
+    setActiveForm(null);
+    setActiveDocs([]);
+  };
+
+  const copySerial = async () => {
+    const s = activeForm?.serialNumber;
+    if (!s) return toast.error("لا يوجد سيريال لنسخه");
+    try {
+      await navigator.clipboard.writeText(String(s));
+      toast.success("تم نسخ السيريال ✅");
+    } catch {
+      toast.error("تعذر نسخ السيريال ❌");
+    }
+  };
+
+  // ---------- حذف مع تأكيد Toast ----------
+  const confirmDeleteToast = (id) => {
+    toast.custom(
+      (t) => (
+        <div
+          className={`${
+            t.visible ? "animate-enter" : "animate-leave"
+          } max-w-md w-full bg-white shadow-lg rounded-2xl pointer-events-auto border border-rose-100`}
+          dir="rtl"
+        >
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center">
+                <i className="fas fa-trash text-rose-600"></i>
+              </div>
+
+              <div className="flex-1">
+                <p className="font-extrabold text-gray-900">تأكيد الحذف</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  هل أنت متأكد من حذف الفاتورة نهائيًا؟ لا يمكن التراجع عن هذه العملية.
+                </p>
+
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={async () => {
+                      toast.dismiss(t.id);
+                      await deleteForm(id);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 text-sm font-semibold"
+                  >
+                    نعم، احذف
+                  </button>
+
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="إغلاق"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: 7000 }
+    );
+  };
 
   const deleteForm = async (id) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا التقرير نهائيًا؟")) return;
     try {
       await api.delete(`/api/forms/${id}/delete`);
       toast.success("تم الحذف بنجاح ✅");
       setRows((p) => p.filter((x) => x._id !== id));
+      if (activeFormId === id) closePreview();
     } catch (e) {
       toast.error("فشل الحذف ❌");
       console.error(e);
     }
   };
 
-  const getStatusText = (f) => {
-    if (f.accountantRelease?.status !== "released")
-      return (
-        <span className="text-amber-600">
-          <i className="fas fa-user-tie mr-1"></i>في انتظار موافقة المحاسب
-        </span>
-      );
-    if (f.branchManagerRelease?.status !== "released")
-      return (
-        <span className="text-blue-600">
-          <i className="fas fa-user-shield mr-1"></i>في انتظار موافقة مدير الفرع
-        </span>
-      );
-    if (f.adminRelease?.status === "released")
-      return (
-        <span className="text-green-600">
-          <i className="fas fa-check-circle mr-1"></i>تم اعتمادها نهائيًا
-        </span>
-      );
-    if (f.status === "rejected")
-      return (
-        <span className="text-rose-600">
-          <i className="fas fa-times-circle mr-1"></i>مرفوضة
-        </span>
-      );
-    return (
-      <span className="text-gray-500">
-        <i className="fas fa-hourglass-half mr-1"></i>قيد الانتظار
-      </span>
-    );
-  };
-
-  const formatDateOnly = (d) => (d ? new Date(d).toLocaleDateString() : "-");
+  // ---------- شرائح سريعة للحالات ----------
+  const quickStatuses = [
+    { key: "", label: "الكل", count: totals.all, icon: "fas fa-layer-group" },
+    { key: "pending", label: "قيد مراجعة المحاسب", count: totals.pending, icon: "fas fa-user-tie" },
+    { key: "waitingBranch", label: "قيد مراجعة مدير الفرع", count: totals.waitingBranch, icon: "fas fa-user-shield" },
+    { key: "released", label: "معتمدة", count: totals.released, icon: "fas fa-check-circle" },
+    { key: "rejected", label: "مرفوضة", count: totals.rejected, icon: "fas fa-times-circle" },
+  ];
 
   return (
-    <div className="space-y-6">
-      <section className="bg-white/80 rounded-2xl border p-4 shadow-sm">
-        <h3 className="font-semibold mb-3">
-          <i className="fas fa-file-invoice-dollar mr-2 text-gray-700"></i>
-          كل الفواتير في النظام
-        </h3>
+    <div className="space-y-6" dir="rtl">
+      {/* Header */}
+      <section className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h3 className="font-extrabold text-gray-900 text-lg">
+              <i className="fas fa-file-invoice-dollar ml-2 text-gray-700"></i>
+              لوحة التحكم — كل الفواتير
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              فلترة + معاينة كاملة داخل مودال + مرفقات + تسلسل زمني
+            </p>
+          </div>
 
+          <div className="flex flex-wrap gap-2">
+            <StatPill label="الكل" value={totals.all} icon="fas fa-layer-group" />
+            <StatPill label="محاسب" value={totals.pending} icon="fas fa-user-tie" />
+            <StatPill label="مدير فرع" value={totals.waitingBranch} icon="fas fa-user-shield" />
+            <StatPill label="أدمن" value={totals.waitingAdmin} icon="fas fa-user-cog" />
+            <StatPill label="معتمدة" value={totals.released} icon="fas fa-check-circle" />
+            <StatPill label="مرفوضة" value={totals.rejected} icon="fas fa-times-circle" />
+          </div>
+        </div>
+
+        {/* Quick status chips */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {quickStatuses.map((s) => {
+            const active = filters.status === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setFilters((p) => ({ ...p, status: s.key }))}
+                className={`px-3 py-2 rounded-2xl border text-sm font-bold flex items-center gap-2 transition
+                  ${active ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                <i className={`${s.icon}`} />
+                <span>{s.label}</span>
+                <span className={`${active ? "bg-white/20" : "bg-gray-100"} px-2 py-0.5 rounded-full text-xs`}>
+                  {s.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filters */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div className="md:col-span-4">
+            <label className="text-xs font-semibold text-gray-700">بحث</label>
+            <div className="relative">
+              <i className="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+                placeholder="ابحث بالملاحظات…"
+                className="w-full pr-10 pl-3 py-2 rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="text-xs font-semibold text-gray-700">الفرع</label>
+            <select
+              value={filters.branchId}
+              onChange={(e) => setFilters((p) => ({ ...p, branchId: e.target.value }))}
+              className="w-full px-3 py-2 rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-gray-200"
+            >
+              <option value="">كل الفروع</option>
+              {branches.map((b) => (
+                <option key={b._id} value={b._id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="text-xs font-semibold text-gray-700">المستخدم</label>
+            <select
+              value={filters.userId}
+              onChange={(e) => setFilters((p) => ({ ...p, userId: e.target.value }))}
+              className="w-full px-3 py-2 rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-gray-200"
+            >
+              <option value="">كل المستخدمين</option>
+              {users.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-xs font-semibold text-gray-700">الحالة</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
+              className="w-full px-3 py-2 rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-gray-200"
+            >
+              <option value="">كل الحالات</option>
+              <option value="pending">قيد مراجعة المحاسب</option>
+              <option value="waitingBranch">قيد مراجعة مدير الفرع</option>
+              <option value="released">معتمدة</option>
+              <option value="rejected">مرفوضة</option>
+            </select>
+          </div>
+
+          <div className="md:col-span-12 flex flex-wrap gap-2 justify-end">
+            <button
+              onClick={() => setSortDir((p) => (p === "desc" ? "asc" : "desc"))}
+              className="px-4 py-2 rounded-2xl bg-white border hover:bg-gray-50 text-gray-700 font-extrabold text-sm"
+              title="تغيير ترتيب التاريخ"
+            >
+              <i className="fas fa-sort ml-2"></i>
+              ترتيب التاريخ: {sortDir === "desc" ? "الأحدث" : "الأقدم"}
+            </button>
+
+            <button
+              onClick={() => {
+                setQInput("");
+                setSortDir("desc");
+                setFilters({ q: "", branchId: "", userId: "", status: "" });
+              }}
+              className="px-4 py-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-sm"
+            >
+              <i className="fas fa-eraser ml-2"></i>
+              مسح الفلاتر
+            </button>
+
+            <button
+              onClick={fetchAll}
+              className="px-4 py-2 rounded-2xl bg-gray-900 hover:bg-black text-white font-extrabold text-sm"
+            >
+              <i className="fas fa-sync-alt ml-2"></i>
+              تحديث
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Table */}
+      <section className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-gray-100 sticky top-0 z-10">
               <tr>
-                <th className="p-2 border">التاريخ</th>
-                <th className="p-2 border">الفرع</th>
-                <th className="p-2 border">المستخدم</th>
-                <th className="p-2 border">الحالة الحالية</th>
+                <th className="p-3 border text-right">السيريال</th>
+                <th className="p-3 border text-right">التاريخ</th>
+                <th className="p-3 border text-right">الفرع</th>
+                <th className="p-3 border text-right">المستخدم</th>
+                <th className="p-3 border text-right">الإجمالي</th>
+                <th className="p-3 border text-right">آخر إجراء</th>
+                <th className="p-3 border text-right">الحالة</th>
+
                 {isAdmin && (
                   <>
-                    <th className="p-2 border">معاينة</th>
-                    <th className="p-2 border">حذف نهائي</th>
+                    <th className="p-3 border text-right">معاينة</th>
+                    <th className="p-3 border text-right">حذف</th>
                   </>
                 )}
               </tr>
@@ -1913,35 +2279,40 @@ function AllFormsPage({ api, isAdmin }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 6 : 4} className="text-center p-4">
-                    <i className="fas fa-spinner fa-spin text-gray-500"></i> جاري التحميل...
+                  <td colSpan={isAdmin ? 9 : 7} className="text-center p-6 text-gray-600">
+                    <i className="fas fa-spinner fa-spin ml-2 text-gray-500"></i> جاري التحميل...
                   </td>
                 </tr>
-              ) : rows.length ? (
-                rows.map((f) => (
-                  <tr key={f._id} className="text-center hover:bg-gray-50">
-                    <td className="p-2 border">{formatDateOnly(f.formDate)}</td>
-                    <td className="p-2 border">{f.branch?.name || "-"}</td>
-                    <td className="p-2 border">{f.user?.name || "-"}</td>
-                    <td className="p-2 border">{getStatusText(f)}</td>
+              ) : sortedRows.length ? (
+                sortedRows.map((f) => (
+                  <tr key={f._id} className="hover:bg-gray-50">
+                    <td className="p-3 border font-extrabold text-gray-900">
+                      {f.serialNumber || "—"}
+                    </td>
+                    <td className="p-3 border">{formatDateOnly(f.formDate)}</td>
+                    <td className="p-3 border">{f.branch?.name || "—"}</td>
+                    <td className="p-3 border">{f.user?.name || "—"}</td>
+                    <td className="p-3 border font-bold">{fmtSAR(f.totalSales || 0)}</td>
+                    <td className="p-3 border">{formatDateTime(lastActionAt(f))}</td>
+                    <td className="p-3 border">{statusBadge(f)}</td>
 
                     {isAdmin && (
                       <>
-                        <td className="p-2 border">
+                        <td className="p-3 border">
                           <button
-                            onClick={() => window.open(`/form/${f._id}`, "_blank")}
-                            className="bg-blue-600 text-white px-3 py-1 rounded-xl hover:bg-blue-700 w-full sm:w-auto"
+                            onClick={() => openPreview(f._id)}
+                            className="bg-blue-600 text-white px-3 py-2 rounded-2xl hover:bg-blue-700 w-full sm:w-auto font-extrabold"
                           >
-                            <i className="fas fa-eye mr-1"></i>معاينة
+                            <i className="fas fa-eye ml-2"></i>معاينة
                           </button>
                         </td>
 
-                        <td className="p-2 border">
+                        <td className="p-3 border">
                           <button
-                            onClick={() => deleteForm(f._id)}
-                            className="bg-rose-600 text-white px-3 py-1 rounded-xl hover:bg-rose-700 w-full sm:w-auto"
+                            onClick={() => confirmDeleteToast(f._id)}
+                            className="bg-rose-600 text-white px-3 py-2 rounded-2xl hover:bg-rose-700 w-full sm:w-auto font-extrabold"
                           >
-                            <i className="fas fa-trash-alt mr-1"></i>حذف
+                            <i className="fas fa-trash-alt ml-2"></i>حذف
                           </button>
                         </td>
                       </>
@@ -1950,11 +2321,8 @@ function AllFormsPage({ api, isAdmin }) {
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={isAdmin ? 6 : 4}
-                    className="text-center p-4 text-gray-500 italic"
-                  >
-                    <i className="fas fa-inbox mr-2"></i>لا توجد فواتير حاليًا
+                  <td colSpan={isAdmin ? 9 : 7} className="text-center p-8 text-gray-500 italic">
+                    <i className="fas fa-inbox ml-2"></i>لا توجد فواتير حاليًا
                   </td>
                 </tr>
               )}
@@ -1962,7 +2330,462 @@ function AllFormsPage({ api, isAdmin }) {
           </table>
         </div>
       </section>
+
+      {/* Preview Modal */}
+      <Modal open={previewOpen} onClose={closePreview}>
+        <div className="p-5" dir="rtl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-extrabold text-gray-900">
+                <i className="fas fa-receipt ml-2 text-gray-700"></i>
+                معاينة فاتورة {activeForm?.serialNumber ? `— ${activeForm.serialNumber}` : ""}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">كل التفاصيل + المرفقات + التسلسل الزمني</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copySerial}
+                className="px-3 py-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-sm"
+                title="نسخ السيريال"
+              >
+                <i className="fas fa-copy ml-2"></i>نسخ السيريال
+              </button>
+
+              <button
+                onClick={closePreview}
+                className="w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                aria-label="إغلاق"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+
+          {previewLoading ? (
+            <div className="py-10 text-center text-gray-600">
+              <i className="fas fa-spinner fa-spin ml-2"></i> جاري تحميل التفاصيل...
+            </div>
+          ) : !activeForm ? (
+            <div className="py-10 text-center text-gray-600">لا توجد بيانات</div>
+          ) : (
+            <div className="mt-4 space-y-5">
+              {/* Tabs */}
+              <div className="flex flex-wrap gap-2">
+                <TabButton active={modalTab === "summary"} onClick={() => setModalTab("summary")}>
+                  <i className="fas fa-star ml-2" /> ملخص
+                </TabButton>
+                <TabButton active={modalTab === "details"} onClick={() => setModalTab("details")}>
+                  <i className="fas fa-list ml-2" /> تفاصيل
+                </TabButton>
+                <TabButton active={modalTab === "attachments"} onClick={() => setModalTab("attachments")}>
+                  <i className="fas fa-paperclip ml-2" /> مرفقات
+                </TabButton>
+                <TabButton active={modalTab === "timeline"} onClick={() => setModalTab("timeline")}>
+                  <i className="fas fa-stream ml-2" /> تسلسل زمني
+                </TabButton>
+              </div>
+
+              {/* Summary */}
+              {modalTab === "summary" && (
+                <>
+                  <div className="rounded-2xl border bg-gradient-to-br from-white to-gray-50 p-4">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                      <div>
+                        <div className="text-sm text-gray-600">السيريال</div>
+                        <div className="text-xl font-extrabold text-gray-900">
+                          {activeForm.serialNumber || "—"}
+                        </div>
+                        <div className="mt-2">{statusBadge(activeForm)}</div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <InfoRow label="التاريخ" value={formatDateOnly(activeForm.formDate)} />
+                        <InfoRow label="وقت الرفع" value={formatDateTime(activeForm.uploadedAt || activeForm.createdAt)} />
+                        <InfoRow label="الفرع" value={activeForm.branch?.name || "—"} />
+                        <InfoRow label="المنشئ" value={activeForm.user?.name || "—"} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <MoneyCard title="نقدي" value={fmtSAR(activeForm.cashCollection)} icon="fas fa-money-bill-wave" />
+                    <MoneyCard title="تطبيقات" value={fmtSAR(activeForm.appsTotal)} icon="fas fa-mobile-alt" />
+                    <MoneyCard title="بنك" value={fmtSAR(activeForm.bankTotal)} icon="fas fa-university" />
+                    <MoneyCard title="الإجمالي" value={fmtSAR(activeForm.totalSales)} icon="fas fa-coins" />
+                    <MoneyCard title="مشتريات" value={fmtSAR(activeForm.purchases)} icon="fas fa-shopping-cart" />
+                    <MoneyCard title="عهدة" value={fmtSAR(activeForm.pettyCash)} icon="fas fa-hand-holding-usd" />
+                  </div>
+
+                  <div className="rounded-2xl border bg-white p-4">
+                    <h4 className="font-extrabold text-gray-900 mb-2">
+                      <i className="fas fa-sticky-note ml-2 text-gray-700"></i>
+                      ملاحظات
+                    </h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {activeForm.notes?.trim() ? activeForm.notes : "—"}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Details */}
+              {modalTab === "details" && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="rounded-2xl border bg-white p-4">
+                    <h4 className="font-extrabold text-gray-900 mb-3">
+                      <i className="fas fa-list ml-2 text-gray-700"></i>
+                      تفاصيل التطبيقات
+                    </h4>
+
+                    <MiniTable
+                      rows={(activeForm.applications || []).map((a, i) => ({
+                        key: i,
+                        name: a?.name || "—",
+                        amount: fmtSAR(a?.amount),
+                      }))}
+                      emptyText="لا توجد تطبيقات"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border bg-white p-4">
+                    <h4 className="font-extrabold text-gray-900 mb-3">
+                      <i className="fas fa-list ml-2 text-gray-700"></i>
+                      تفاصيل البنك
+                    </h4>
+
+                    <MiniTable
+                      rows={(activeForm.bankCollections || []).map((b, i) => ({
+                        key: i,
+                        name: b?.name || "—",
+                        amount: fmtSAR(b?.amount),
+                      }))}
+                      emptyText="لا توجد بيانات بنك"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {modalTab === "attachments" && (
+                <div className="rounded-2xl border bg-white p-4">
+                  <h4 className="font-extrabold text-gray-900 mb-3">
+                    <i className="fas fa-paperclip ml-2 text-gray-700"></i>
+                    المرفقات
+                  </h4>
+                  <AttachmentsGrid docs={activeDocs} />
+                </div>
+              )}
+
+              {/* Timeline */}
+              {modalTab === "timeline" && (
+                <div className="rounded-2xl border bg-white p-4">
+                  <h4 className="font-extrabold text-gray-900 mb-3">
+                    <i className="fas fa-stream ml-2 text-gray-700"></i>
+                    التسلسل الزمني
+                  </h4>
+                  <Timeline form={activeForm} formatDateTime={formatDateTime} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
 
+/* ---------------- UI Helpers ---------------- */
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-2xl border font-extrabold text-sm transition
+        ${active ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StatPill({ label, value, icon }) {
+  return (
+    <div className="px-3 py-2 rounded-2xl bg-white border shadow-sm flex items-center gap-2">
+      <i className={`${icon} text-gray-600`}></i>
+      <div className="text-xs text-gray-600">{label}</div>
+      <div className="text-sm font-extrabold text-gray-900">{value}</div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="px-3 py-2 rounded-2xl bg-white border">
+      <div className="text-xs text-gray-500 font-semibold">{label}</div>
+      <div className="text-sm font-extrabold text-gray-900 mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function MoneyCard({ title, value, icon }) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-gray-500 font-semibold">{title}</div>
+          <div className="text-lg font-extrabold text-gray-900 mt-1">{value}</div>
+        </div>
+        <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+          <i className={`${icon} text-gray-700`}></i>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniTable({ rows, emptyText }) {
+  if (!rows?.length) {
+    return (
+      <div className="text-sm text-gray-500 italic flex items-center gap-2">
+        <i className="fas fa-inbox"></i> {emptyText}
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="p-2 border text-right">الاسم</th>
+            <th className="p-2 border text-right">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key} className="hover:bg-gray-50">
+              <td className="p-2 border">{r.name}</td>
+              <td className="p-2 border font-extrabold">{r.amount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AttachmentsGrid({ docs }) {
+  if (!docs?.length) {
+    return (
+      <div className="text-sm text-gray-500 italic flex items-center gap-2">
+        <i className="fas fa-paperclip"></i> لا توجد مرفقات
+      </div>
+    );
+  }
+
+  const groupName = (type) => {
+    const map = {
+      cash: "نقدي",
+      bank: "بنك",
+      apps: "تطبيقات",
+      purchase: "مشتريات",
+      petty: "عهدة",
+    };
+    return map[type] || "أخرى";
+  };
+
+  const isImage = (url) => /\.(png|jpe?g|webp|gif)$/i.test(url || "");
+  const isPdf = (url) => /\.pdf$/i.test(url || "");
+
+  const groups = docs.reduce((acc, d) => {
+    const k = d?.type || "other";
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(d);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-4">
+      {Object.keys(groups).map((k) => (
+        <div key={k}>
+          <div className="text-sm font-extrabold text-gray-900 mb-2">
+            <i className="fas fa-folder-open ml-2 text-gray-700"></i>
+            {groupName(k)}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {groups[k].map((d, idx) => {
+              const url = d?.fileUrl || "";
+              return (
+                <a
+                  key={`${k}-${idx}`}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-2xl border bg-white hover:shadow-md transition overflow-hidden"
+                  title="فتح الملف"
+                >
+                  <div className="h-40 bg-gray-50 flex items-center justify-center">
+                    {isImage(url) ? (
+                      <img src={url} alt="مرفق" className="w-full h-full object-cover" />
+                    ) : isPdf(url) ? (
+                      <div className="text-center text-gray-700">
+                        <i className="fas fa-file-pdf text-3xl"></i>
+                        <div className="text-xs mt-2 font-extrabold">ملف PDF</div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-700">
+                        <i className="fas fa-file-alt text-3xl"></i>
+                        <div className="text-xs mt-2 font-extrabold">ملف</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3">
+                    <div className="text-xs text-gray-500 font-semibold">المسار</div>
+                    <div className="text-sm font-extrabold text-gray-900 break-all group-hover:text-blue-700">
+                      {url || "—"}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Timeline({ form, formatDateTime }) {
+  const safeName = (by) => {
+    if (!by) return "—";
+    if (typeof by === "string") return by;
+    return by?.name || "—";
+  };
+
+  const steps = [
+    {
+      title: "تم إنشاء / رفع الفاتورة",
+      icon: "fas fa-upload",
+      status: "تم",
+      by: form?.user?.name,
+      at: form?.uploadedAt || form?.createdAt,
+      note: "",
+    },
+    {
+      title: "قرار المحاسب",
+      icon: "fas fa-user-tie",
+      status: mapArabicStatus(form?.accountantRelease?.status),
+      by: safeName(form?.accountantRelease?.by),
+      at: form?.accountantRelease?.at || form?.accountantReleaseAt,
+      note: form?.accountantRelease?.note || "",
+    },
+    {
+      title: "قرار مدير الفرع",
+      icon: "fas fa-user-shield",
+      status: mapArabicStatus(form?.branchManagerRelease?.status),
+      by: safeName(form?.branchManagerRelease?.by),
+      at: form?.branchManagerRelease?.at || form?.branchManagerReleaseAt,
+      note: form?.branchManagerRelease?.note || "",
+    },
+    {
+      title: "قرار الأدمن",
+      icon: "fas fa-user-cog",
+      status: mapArabicStatus(form?.adminRelease?.status),
+      by: safeName(form?.adminRelease?.by),
+      at: form?.adminRelease?.at || form?.adminReleaseAt,
+      note: form?.adminRelease?.note || form?.adminNote || "",
+    },
+  ];
+
+  function pill(ar) {
+    const base = "px-2 py-1 rounded-full text-xs font-extrabold border inline-flex items-center gap-2";
+    if (ar === "معتمد")
+      return (
+        <span className={`${base} bg-green-50 text-green-700 border-green-200`}>
+          <i className="fas fa-check-circle"></i> معتمد
+        </span>
+      );
+    if (ar === "مرفوض")
+      return (
+        <span className={`${base} bg-rose-50 text-rose-700 border-rose-200`}>
+          <i className="fas fa-times-circle"></i> مرفوض
+        </span>
+      );
+    if (ar === "تم")
+      return (
+        <span className={`${base} bg-gray-50 text-gray-700 border-gray-200`}>
+          <i className="fas fa-check"></i> تم
+        </span>
+      );
+    return (
+      <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}>
+        <i className="fas fa-hourglass-half"></i> قيد المراجعة
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {steps.map((s, idx) => (
+        <div key={idx} className="rounded-2xl border bg-gray-50 p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white border flex items-center justify-center">
+                <i className={`${s.icon} text-gray-700`}></i>
+              </div>
+              <div>
+                <div className="font-extrabold text-gray-900">{s.title}</div>
+                <div className="text-sm text-gray-600 mt-0.5">
+                  بواسطة: <span className="font-extrabold">{s.by || "—"}</span>{" "}
+                  {s.at ? (
+                    <>
+                      — <span className="font-semibold">{formatDateTime(s.at)}</span>
+                    </>
+                  ) : (
+                    <>— <span className="font-semibold">لم يتم بعد</span></>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>{pill(s.status)}</div>
+          </div>
+
+          {s.note?.trim() ? (
+            <div className="mt-3 text-sm text-gray-700 bg-white border rounded-2xl p-3">
+              <div className="text-xs text-gray-500 font-semibold mb-1">ملاحظة</div>
+              <div className="whitespace-pre-wrap">{s.note}</div>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function mapArabicStatus(s) {
+  if (s === "released") return "معتمد";
+  if (s === "rejected") return "مرفوض";
+  if (!s || s === "pending") return "قيد المراجعة";
+  return "قيد المراجعة";
+}
+
+function Modal({ open, onClose, children }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 p-3 sm:p-6 flex items-center justify-center">
+        <div className="w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { AllFormsPage };
