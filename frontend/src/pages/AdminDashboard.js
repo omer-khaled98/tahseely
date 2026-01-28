@@ -2554,7 +2554,7 @@ function MiniTable({ rows, emptyText }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border">
+    <div className="overflow-x-auto rounded-2xl border">
       <table className="min-w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
@@ -2575,7 +2575,15 @@ function MiniTable({ rows, emptyText }) {
   );
 }
 
-function AttachmentsGrid({ docs }) {
+function AttachmentsGrid({ docs, attLoading }) {
+  if (attLoading) {
+    return (
+      <div className="text-sm text-gray-500 italic flex items-center gap-2">
+        <i className="fas fa-paperclip"></i> جاري التحميل…
+      </div>
+    );
+  }
+
   if (!docs?.length) {
     return (
       <div className="text-sm text-gray-500 italic flex items-center gap-2">
@@ -2606,54 +2614,42 @@ function AttachmentsGrid({ docs }) {
   }, {});
 
   return (
-    <div className="space-y-4">
-      {Object.keys(groups).map((k) => (
-        <div key={k}>
-          <div className="text-sm font-extrabold text-gray-900 mb-2">
-            <i className="fas fa-folder-open ml-2 text-gray-700"></i>
-            {groupName(k)}
-          </div>
+    <div className="mt-6">
+      <h4 className="font-semibold mb-2">المرفقات</h4>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {Object.keys(groups).map((k) => (
+          <div key={k}>
+            <div className="text-sm font-extrabold text-gray-900 mb-2">
+              <i className="fas fa-folder-open ml-2 text-gray-700"></i>
+              {groupName(k)}
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {groups[k].map((d, idx) => {
               const url = d?.fileUrl || "";
+              const href = url?.startsWith("http")
+                ? url
+                : `${process.env.REACT_APP_API_URL || ""}${url || ""}`;
+
               return (
-                <a
-                  key={`${k}-${idx}`}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group rounded-2xl border bg-white hover:shadow-md transition overflow-hidden"
-                  title="فتح الملف"
-                >
-                  <div className="h-40 bg-gray-50 flex items-center justify-center">
+                <li key={`${k}-${idx}`} className="border rounded-xl overflow-hidden">
+                  <a href={href} target="_blank" rel="noopener noreferrer">
                     {isImage(url) ? (
-                      <img src={url} alt="مرفق" className="w-full h-full object-cover" />
+                      <img src={href} className="w-full h-32 object-cover" alt="مرفق" />
                     ) : isPdf(url) ? (
                       <div className="text-center text-gray-700">
                         <i className="fas fa-file-pdf text-3xl"></i>
                         <div className="text-xs mt-2 font-extrabold">ملف PDF</div>
                       </div>
                     ) : (
-                      <div className="text-center text-gray-700">
-                        <i className="fas fa-file-alt text-3xl"></i>
-                        <div className="text-xs mt-2 font-extrabold">ملف</div>
-                      </div>
+                      <div className="p-3 text-center text-sm">{url}</div>
                     )}
-                  </div>
-
-                  <div className="p-3">
-                    <div className="text-xs text-gray-500 font-semibold">المسار</div>
-                    <div className="text-sm font-extrabold text-gray-900 break-all group-hover:text-blue-700">
-                      {url || "—"}
-                    </div>
-                  </div>
-                </a>
+                  </a>
+                </li>
               );
             })}
           </div>
-        </div>
-      ))}
+        ))}
+      </ul>
     </div>
   );
 }

@@ -147,7 +147,8 @@ const createForm = async (req, res) => {
       formDate: new Date(formDate),
     });
 
-    if (exists) {
+    // إضافة شرط للتأكد من حالة الفورم إذا كانت مرفوضة
+    if (exists && exists.status !== "rejected" && exists.status !== "rejected_by_manager" && exists.status !== "rejected_by_admin") {
       return res.status(409).json({
         message: "مرفوض: يوجد فورم مسجل لهذا الفرع في نفس التاريخ",
       });
