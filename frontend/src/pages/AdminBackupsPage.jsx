@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { Download, Building2, CalendarDays, CheckSquare, Square } from "lucide-react";
+import { BrandPageStyle } from "./brandTheme";
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
@@ -132,9 +133,10 @@ export default function AdminBackupsPage({ api, isAdmin }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="brand-app space-y-6 p-4 md:p-6">
+      <BrandPageStyle />
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-6">
+      <div className="brand-card p-6">
         <div className="flex items-center gap-2 text-gray-700 mb-2">
           <Download size={18} />
           <h3 className="font-bold text-lg">إدارة النسخ الاحتياطية</h3>
@@ -146,7 +148,7 @@ export default function AdminBackupsPage({ api, isAdmin }) {
       </div>
 
       {/* Filters */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-6 space-y-4">
+      <section className="brand-card p-6 space-y-4">
         <div className="flex items-center gap-2 text-gray-700">
           <CalendarDays size={18} />
           <h4 className="font-semibold">فلاتر النسخ الاحتياطية</h4>
@@ -176,19 +178,19 @@ export default function AdminBackupsPage({ api, isAdmin }) {
           <div className="md:col-span-4 flex flex-wrap gap-2 items-end justify-end">
             <button
               onClick={setRangeToday}
-              className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
+              className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80"
             >
               اليوم
             </button>
             <button
               onClick={setRangeThisWeek}
-              className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
+              className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80"
             >
               هذا الأسبوع
             </button>
             <button
               onClick={setRangeThisMonth}
-              className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
+              className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80"
             >
               هذا الشهر
             </button>
@@ -228,7 +230,7 @@ export default function AdminBackupsPage({ api, isAdmin }) {
                     key={b._id}
                     type="button"
                     onClick={() => toggleBranch(b._id)}
-                    className={`flex items-center justify-between border rounded-xl px-3 py-2 text-sm bg-white hover:bg-gray-50 ${
+                    className={`flex items-center justify-between border rounded-xl px-3 py-2 text-sm bg-white hover:bg-slate-50/80 ${
                       checked ? "border-gray-900" : "border-gray-200"
                     }`}
                   >
@@ -259,7 +261,7 @@ export default function AdminBackupsPage({ api, isAdmin }) {
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white hover:bg-black disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl brand-primary-btn hover:bg-black disabled:opacity-60"
           >
             <Download size={16} />
             {downloading ? "جاري التحميل…" : "تحميل النسخة الاحتياطية ZIP"}
@@ -268,7 +270,7 @@ export default function AdminBackupsPage({ api, isAdmin }) {
       </section>
 
       {/* Notes */}
-      <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-5 text-sm text-gray-700">
+      <section className="brand-card p-5 text-sm text-gray-700">
         <div className="font-semibold mb-2">ملاحظات سريعة:</div>
         <ul className="list-disc pr-5 space-y-1">
           <li>لو فعلت “تحميل الكل” هيبقى param = branches=all.</li>

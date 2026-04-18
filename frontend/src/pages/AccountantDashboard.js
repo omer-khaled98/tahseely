@@ -25,6 +25,7 @@ import {
 import { Toaster, toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { BrandPageStyle } from "./brandTheme";
 
 /* ================= Helpers ================= */
 const currency = (n) => Number(n || 0).toLocaleString();
@@ -472,14 +473,15 @@ export default function AccountantDashboard() {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50">
+    <div className="brand-app min-h-screen">
+      <BrandPageStyle />
       <Toaster position="top-center" toastOptions={{ duration: 2600 }} />
 
       {/* Navbar */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b border-white/60 shadow-sm">
+      <header className="sticky top-0 z-40 backdrop-blur brand-shell border-b border-white/60 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-400 shadow-lg" />
+            <div className="brand-logo-badge" />
             <div>
               <p className="text-xs text-gray-500">لوحة المحاسب</p>
               <h1 className="text-lg font-bold tracking-tight">مراجعة تقارير الفروع</h1>
@@ -494,7 +496,7 @@ export default function AccountantDashboard() {
                 localStorage.removeItem("token");
                 window.location.href = "/login";
               }}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow"
             >
               <LogOut size={16} />
               <span>تسجيل خروج</span>
@@ -520,7 +522,7 @@ export default function AccountantDashboard() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-xl border text-sm font-medium transition flex items-center gap-2
-                ${tab === t.key ? `bg-${t.color}-600 text-white` : "bg-white hover:bg-gray-100 text-gray-700"}`}
+                ${tab === t.key ? `bg-${t.color}-600 text-white` : "bg-white hover:bg-slate-100/80 text-gray-700"}`}
             >
               {t.icon}
               {t.label}
@@ -531,14 +533,14 @@ export default function AccountantDashboard() {
         {/* Summary Cards */}
         <section className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <StatCard title="عدد التقارير" value={filteredForms.length} tint="from-gray-500 to-gray-700" />
-          <StatCard title="نقدي" value={currency(totals.cash)} tint="from-amber-400 to-yellow-500" />
+          <StatCard title="نقدي" value={currency(totals.cash)} tint="from-sky-400 to-yellow-500" />
           <StatCard title="تطبيقات" value={currency(totals.apps)} tint="from-sky-400 to-blue-500" />
           <StatCard title="بنك" value={currency(totals.bank)} tint="from-indigo-500 to-violet-600" />
           <StatCard title="إجمالي المبيعات" value={currency(totals.salesOnly)} tint="from-emerald-500 to-green-600" />
         </section>
 
         {/* Filters (sticky card with horizontal scroll) */}
-        <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-6">
+        <section className="brand-card p-4 mb-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-gray-600">
               <Filter size={16} />
@@ -556,13 +558,13 @@ export default function AccountantDashboard() {
                     appNames: [],
                   });
                 }}
-                className="text-xs px-2 py-1 rounded-lg border hover:bg-gray-50 inline-flex items-center gap-1"
+                className="text-xs px-2 py-1 rounded-lg border hover:bg-slate-50/80 inline-flex items-center gap-1"
               >
                 <RotateCcw size={14} /> تصفير الفلاتر
               </button>
               <button
                 onClick={() => fetchForms()}
-                className="text-xs px-2 py-1 rounded-lg border hover:bg-gray-50 inline-flex items-center gap-1"
+                className="text-xs px-2 py-1 rounded-lg border hover:bg-slate-50/80 inline-flex items-center gap-1"
                 title="تحديث البيانات من الخادم"
               >
                 <RefreshCw size={14} /> تحديث
@@ -570,7 +572,7 @@ export default function AccountantDashboard() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto brand-table-wrap brand-scroll">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-w-[800px]">
               {/* q search */}
               <div className="md:col-span-3 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
@@ -635,7 +637,7 @@ export default function AccountantDashboard() {
               <div className="md:col-span-2 flex items-center justify-end gap-2">
                 <button
                   onClick={fetchForms}
-                  className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95 transition"
+                  className="brand-primary-btn px-4 py-2 rounded-xl hover:opacity-95 transition"
                 >
                   تحديث
                 </button>
@@ -654,10 +656,10 @@ export default function AccountantDashboard() {
         </section>
 
         {/* Table */}
-<section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-  <div className="overflow-x-auto">
+<section className="brand-card p-4">
+  <div className="overflow-x-auto brand-table-wrap brand-scroll">
     <table className="min-w-full text-sm border rounded-xl overflow-hidden">
-      <thead className="bg-gray-100">
+      <thead className="bg-slate-100/80">
         <tr className="text-center">
           <th className="p-2 border">رقم التقرير</th>
           <th className="p-2 border">التاريخ</th>
@@ -746,7 +748,7 @@ export default function AccountantDashboard() {
 <td className="p-2 border">
   {accountantStatus === "released" ? (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+      <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-blue-800">
         معتمد
       </span>
       <span className="text-[11px] text-gray-500">
@@ -760,7 +762,7 @@ export default function AccountantDashboard() {
     </div>
   ) : accountantStatus === "rejected" ? (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-700">
+      <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-blue-800">
         مرفوض
       </span>
       <span className="text-[11px] text-gray-500">
@@ -773,7 +775,7 @@ export default function AccountantDashboard() {
       </span>
     </div>
   ) : (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
+    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-blue-800">
       قيد المراجعة
     </span>
   )}
@@ -783,11 +785,11 @@ export default function AccountantDashboard() {
                 {/* 👔 اعتماد المدير */}
                 <td className="p-2 border">
                   {mgrStatus === "released" ? (
-                    <span className="text-emerald-600 font-medium">تم الاعتماد</span>
+                    <span className="text-blue-700 font-medium">تم الاعتماد</span>
                   ) : mgrStatus === "rejected" ? (
-                    <span className="text-rose-600 font-medium">مرفوض</span>
+                    <span className="text-blue-700 font-medium">مرفوض</span>
                   ) : (
-                    <span className="text-amber-600 font-medium">قيد المراجعة</span>
+                    <span className="text-blue-700 font-medium">قيد المراجعة</span>
                   )}
                 </td>
 
@@ -800,7 +802,7 @@ export default function AccountantDashboard() {
                 <td className="p-2 border space-y-1">
                   <button
                     onClick={() => openDetails(f)}
-                    className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs"
+                    className="w-full px-2 py-1 brand-muted-btn text-xs"
                   >
                     تفاصيل
                   </button>
@@ -813,7 +815,7 @@ export default function AccountantDashboard() {
                           setActionTargetId(f._id);
                           setActionNote("");
                         }}
-                        className="w-full px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-xs"
+                        className="w-full px-2 py-1 brand-success-btn rounded hover:bg-blue-800 text-xs"
                       >
                         موافقة
                       </button>
@@ -823,7 +825,7 @@ export default function AccountantDashboard() {
                           setActionTargetId(f._id);
                           setActionNote("");
                         }}
-                        className="w-full px-2 py-1 bg-rose-600 text-white rounded hover:bg-rose-700 text-xs"
+                        className="w-full px-2 py-1 brand-danger-btn rounded hover:bg-blue-800 text-xs"
                       >
                         رفض
                       </button>
@@ -853,7 +855,7 @@ export default function AccountantDashboard() {
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => p - 1)}
               className={`px-3 py-1 rounded-lg border ${
-                currentPage === 1 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-gray-100"
+                currentPage === 1 ? "bg-slate-100/80 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-slate-100/80"
               }`}
             >
               السابق
@@ -865,7 +867,7 @@ export default function AccountantDashboard() {
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
               className={`px-3 py-1 rounded-lg border ${
-                currentPage === totalPages ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-gray-100"
+                currentPage === totalPages ? "bg-slate-100/80 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-slate-100/80"
               }`}
             >
               التالي
@@ -911,7 +913,7 @@ export default function AccountantDashboard() {
       {selectedForm.accountantRelease?.at && (
         <div>
           اعتماد المحاسب:
-          <span className="ml-1 font-medium text-emerald-700">
+          <span className="ml-1 font-medium text-blue-800">
             {new Date(selectedForm.accountantRelease.at).toLocaleTimeString(
               "ar-EG",
               { hour: "2-digit", minute: "2-digit" }
@@ -925,13 +927,13 @@ export default function AccountantDashboard() {
   <div className="flex gap-2" data-html2canvas-ignore>
     <button
       onClick={handleExportPDF}
-      className="px-3 py-1.5 rounded-xl bg-gray-900 text-white hover:bg-black text-sm inline-flex items-center gap-1"
+      className="px-3 py-1.5 rounded-xl brand-primary-btn hover:bg-black text-sm inline-flex items-center gap-1"
     >
       تصدير PDF
     </button>
     <button
       onClick={closeDetails}
-      className="border px-3 py-1.5 rounded-xl hover:bg-gray-50 text-sm inline-flex items-center gap-1"
+      className="border px-3 py-1.5 rounded-xl hover:bg-slate-50/80 text-sm inline-flex items-center gap-1"
     >
       إغلاق
     </button>
@@ -957,9 +959,9 @@ export default function AccountantDashboard() {
                     <div className="text-sm whitespace-pre-wrap">{selectedForm.branchManagerRelease?.note || "-"}</div>
                     <div className="mt-2 text-xs">
                       <span className={`px-2 py-0.5 rounded-full border
-                        ${selectedForm.branchManagerRelease?.status === "rejected" ? "text-rose-700 border-rose-300 bg-rose-50" :
-                          selectedForm.branchManagerRelease?.status === "released" ? "text-emerald-700 border-emerald-300 bg-emerald-50" :
-                            "text-amber-700 border-amber-300 bg-amber-50"}`}>
+                        ${selectedForm.branchManagerRelease?.status === "rejected" ? "text-blue-800 border-rose-300 bg-sky-50" :
+                          selectedForm.branchManagerRelease?.status === "released" ? "text-blue-800 border-emerald-300 bg-sky-50" :
+                            "text-blue-800 border-amber-300 bg-sky-50"}`}>
                         حالة المدير: {selectedForm.branchManagerRelease?.status || "pending"}
                       </span>
                     </div>
@@ -991,7 +993,7 @@ export default function AccountantDashboard() {
                     ) : (
                       <div className="text-sm text-gray-500">لا يوجد</div>
                     )}
-                    <div className="text-right mt-2 font-bold text-emerald-700">
+                    <div className="text-right mt-2 font-bold text-blue-800">
                       الإجمالي: {currency(sumAppsArr(selectedForm) || Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0))}
                     </div>
                   </div>
@@ -1073,7 +1075,7 @@ export default function AccountantDashboard() {
                 {att.fileUrl?.split("/").pop()}
               </div>
             )}
-            <div className="text-xs text-gray-500 text-center p-1 bg-gray-50 border-t">
+            <div className="text-xs text-gray-500 text-center p-1 bg-slate-50/80 border-t">
               {att.type?.toUpperCase() || "ملف"}
             </div>
           </a>
@@ -1093,7 +1095,7 @@ export default function AccountantDashboard() {
 
                 {/* Edit/Resubmit actions (only if rejected by manager) */}
                 {canEdit && (
-                  <div className="border rounded-xl p-3 bg-amber-50/70 mt-2" data-html2canvas-ignore>
+                  <div className="border rounded-xl p-3 bg-sky-50/70 mt-2" data-html2canvas-ignore>
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-amber-800 font-semibold flex items-center gap-2">
                         <Edit3 size={16} />
@@ -1150,7 +1152,7 @@ export default function AccountantDashboard() {
                                   />
                                   <button
                                     onClick={() => removeAppLine(idx)}
-                                    className="p-1 rounded-lg border hover:bg-gray-50"
+                                    className="p-1 rounded-lg border hover:bg-slate-50/80"
                                     title="حذف السطر"
                                   >
                                     <Minus size={14} />
@@ -1159,10 +1161,10 @@ export default function AccountantDashboard() {
                               ))}
                             </ul>
                             <div className="flex justify-between items-center mt-3" data-html2canvas-ignore>
-                              <button onClick={addAppLine} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs">
+                              <button onClick={addAppLine} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg brand-success-btn text-xs">
                                 <Plus size={14} /> إضافة سطر
                               </button>
-                              <div className="font-bold text-emerald-700 text-sm">
+                              <div className="font-bold text-blue-800 text-sm">
                                 الإجمالي: {currency((editForm?.applications || []).reduce((s, x) => s + Number(x.amount || 0), 0))}
                               </div>
                             </div>
@@ -1190,7 +1192,7 @@ export default function AccountantDashboard() {
                                   />
                                   <button
                                     onClick={() => removeBankLine(idx)}
-                                    className="p-1 rounded-lg border hover:bg-gray-50"
+                                    className="p-1 rounded-lg border hover:bg-slate-50/80"
                                     title="حذف السطر"
                                   >
                                     <Minus size={14} />
@@ -1257,7 +1259,7 @@ export default function AccountantDashboard() {
                             <div className="flex flex-col md:items-end gap-2 mt-2" data-html2canvas-ignore>
                               <button
                                 onClick={resubmit}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800"
                               >
                                 <Save size={16} />
                                 إرسال مجددًا للمدير
@@ -1307,7 +1309,7 @@ export default function AccountantDashboard() {
                         setActionTargetId(selectedForm._id);
                         setActionNote("");
                       }}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                      className="px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800"
                     >
                       موافقة
                     </button>
@@ -1317,7 +1319,7 @@ export default function AccountantDashboard() {
                         setActionTargetId(selectedForm._id);
                         setActionNote("");
                       }}
-                      className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+                      className="px-4 py-2 rounded-xl brand-danger-btn hover:bg-blue-800"
                     >
                       رفض
                     </button>
@@ -1341,7 +1343,7 @@ export default function AccountantDashboard() {
               </h4>
               <button
                 onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
-                className="p-1 rounded-lg hover:bg-gray-100"
+                className="p-1 rounded-lg hover:bg-slate-100/80"
                 title="إغلاق"
               >
                 <X size={16} />
@@ -1362,7 +1364,7 @@ export default function AccountantDashboard() {
                 className="w-full border rounded-xl p-3 text-sm min-h-[110px] focus:ring-2 focus:ring-indigo-300 outline-none"
               />
               {actionType === "reject" && !String(actionNote || "").trim() && (
-                <div className="text-xs text-rose-600">سبب الرفض مطلوب.</div>
+                <div className="text-xs text-blue-700">سبب الرفض مطلوب.</div>
               )}
             </div>
 
@@ -1370,7 +1372,7 @@ export default function AccountantDashboard() {
             <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
               <button
                 onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
-                className="px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm"
+                className="px-3 py-2 rounded-xl border hover:bg-slate-50/80 text-sm"
               >
                 إلغاء
               </button>
@@ -1384,7 +1386,7 @@ export default function AccountantDashboard() {
                     setActionNote("");
                     setActionTargetId(null);
                   }}
-                  className="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
+                  className="px-3 py-2 rounded-xl brand-success-btn hover:bg-blue-800 text-sm"
                 >
                   تأكيد الموافقة
                 </button>
@@ -1401,7 +1403,7 @@ export default function AccountantDashboard() {
                   }}
                   className={`px-3 py-2 rounded-xl text-white text-sm ${
                     String(actionNote || "").trim()
-                      ? "bg-rose-600 hover:bg-rose-700"
+                      ? "bg-blue-700 hover:bg-blue-800"
                       : "bg-rose-400 cursor-not-allowed"
                   }`}
                 >
@@ -1434,7 +1436,7 @@ function StatCard({ title, value, tint }) {
 
 function MiniBox({ label, value }) {
   return (
-    <div className="p-3 bg-gray-50 rounded-xl text-center">
+    <div className="p-3 bg-slate-50/80 rounded-xl text-center">
       <div className="text-gray-500 text-sm">{label}</div>
       <div className="font-bold text-lg">{value}</div>
     </div>
@@ -1443,7 +1445,7 @@ function MiniBox({ label, value }) {
 
 function LabeledValue({ label, value }) {
   return (
-    <div className="p-3 bg-gray-50 rounded-xl">
+    <div className="p-3 bg-slate-50/80 rounded-xl">
       <div className="text-gray-500 text-sm">{label}</div>
       <div className="font-bold text-base mt-1">
         {typeof value === "string" || typeof value === "number" ? value : value}
@@ -1516,7 +1518,7 @@ function MultiBranchSelect({ branches, value, onChange }) {
               const id = b._id;
               const checked = selectedSet.has(id);
               return (
-                <label key={id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                <label key={id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={checked}
@@ -1533,7 +1535,7 @@ function MultiBranchSelect({ branches, value, onChange }) {
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t mt-2">
-            <button type="button" onClick={clearAll} className="text-xs text-rose-600 hover:underline">
+            <button type="button" onClick={clearAll} className="text-xs text-blue-700 hover:underline">
               مسح الكل
             </button>
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-indigo-700 hover:underline">
@@ -1581,7 +1583,7 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
               const lower = name.toLowerCase();
               const checked = selected.has(lower);
               return (
-                <label key={opt._id || name} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                <label key={opt._id || name} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={checked}
@@ -1598,7 +1600,7 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t mt-2">
-            <button type="button" onClick={clearAll} className="text-xs text-rose-600 hover:underline">
+            <button type="button" onClick={clearAll} className="text-xs text-blue-700 hover:underline">
               مسح الكل
             </button>
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-indigo-700 hover:underline">

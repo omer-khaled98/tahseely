@@ -21,6 +21,7 @@ import { Pie, Bar, Line } from "react-chartjs-2";
 
 // ===== توستات جميلة =====
 import { Toaster, toast } from "react-hot-toast";
+import { BrandPageStyle } from "./brandTheme";
 
 Chart.register(
   ArcElement, BarElement, CategoryScale, LinearScale,
@@ -95,14 +96,14 @@ const api = useApi();
   const meName = localStorage.getItem("userName") || "مشرف";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50">
+    <div className="brand-app">
       <Toaster position="top-center" toastOptions={{ duration: 2000 }} />
 
       {/* Navbar */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b border-white/60">
+      <header className="sticky top-0 z-40 backdrop-blur brand-shell border-b border-white/60">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-400 shadow-lg" />
+            <div className="brand-logo-badge" />
             <div>
               <p className="text-xs text-gray-500">لوحة التحكم</p>
               <h1 className="text-lg font-bold tracking-tight">الإدارة</h1>
@@ -147,7 +148,7 @@ const api = useApi();
 
           <div className="flex items-center gap-4">
             <span className="hidden md:inline text-sm text-gray-600">مرحباً، <b>{meName}</b></span>
-            <button onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow">
+            <button onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow">
               <LogOut size={16} /><span>تسجيل خروج</span>
             </button>
           </div>
@@ -211,14 +212,14 @@ const api = useApi();
 /* ---------------- Tabs Buttons ---------------- */
 function NavBtn({ icon, label, active, onClick }) {
   return (
-    <button onClick={onClick} className={`px-3 py-2 rounded-xl text-sm inline-flex items-center gap-2 transition ${active ? "bg-gray-900 text-white shadow" : "text-gray-700 hover:bg-gray-100"}`}>
+    <button onClick={onClick} className={`px-3 py-2 rounded-xl text-sm inline-flex items-center gap-2 transition ${active ? "brand-primary-btn shadow" : "text-gray-700 hover:bg-slate-100/80"}`}>
       {icon}<span>{label}</span>
     </button>
   );
 }
 function SmallNavBtn({ label, active, onClick }) {
   return (
-    <button onClick={onClick} className={`px-3 py-2 rounded-xl text-xs transition whitespace-nowrap ${active ? "bg-gray-900 text-white shadow" : "text-gray-700 bg-white/70 border hover:bg-white"}`}>
+    <button onClick={onClick} className={`px-3 py-2 rounded-xl text-xs transition whitespace-nowrap ${active ? "brand-primary-btn shadow" : "text-gray-700 bg-white/70 border hover:bg-white"}`}>
       {label}
     </button>
   );
@@ -258,23 +259,23 @@ function DashboardHome({ api }) {
     <>
       {/* Cards */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<Layers3 className="opacity-80" />} title="طرق التطبيقات" value={apps.length} tint="from-rose-500 to-pink-500" />
-        <StatCard icon={<Layers3 className="opacity-80" />} title="طرق البنك" value={banks.length} tint="from-emerald-500 to-teal-500" />
-        <StatCard icon={<Building2 className="opacity-80" />} title="عدد الفروع" value={branches.length} tint="from-sky-500 to-indigo-500" />
-        <StatCard icon={<UsersIcon className="opacity-80" />} title="عدد المستخدمين" value={users.length} tint="from-amber-500 to-red-500" />
+        <StatCard icon={<Layers3 className="opacity-80" />} title="طرق التطبيقات" value={apps.length} tint="from-sky-500 to-blue-900" />
+        <StatCard icon={<Layers3 className="opacity-80" />} title="طرق البنك" value={banks.length} tint="from-sky-400 to-blue-700" />
+        <StatCard icon={<Building2 className="opacity-80" />} title="عدد الفروع" value={branches.length} tint="from-sky-400 to-blue-800" />
+        <StatCard icon={<UsersIcon className="opacity-80" />} title="عدد المستخدمين" value={users.length} tint="from-blue-500 to-slate-700" />
       </section>
 
       {/* Charts grid */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+        <div className="col-span-1 brand-card p-4">
           <h3 className="font-semibold mb-3">توزيع الأدوار</h3>
           <div className="h-64"><Pie data={pieData} options={commonOptions} /></div>
         </div>
-        <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+        <div className="col-span-1 brand-card p-4">
           <h3 className="font-semibold mb-3">مستخدمون لكل فرع</h3>
           <div className="h-64"><Bar data={barData} options={{ ...commonOptions, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} /></div>
         </div>
-        <div className="col-span-1 bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+        <div className="col-span-1 brand-card p-4">
           <h3 className="font-semibold mb-3">نشاط القوالب</h3>
           <div className="h-64"><Line data={areaData} options={{ ...commonOptions, elements: { line: { tension: 0.35 } } }} /></div>
         </div>
@@ -292,7 +293,7 @@ function StatCard({ icon, title, value, tint }) {
           <p className="text-xs text-gray-500">{title}</p>
           <h4 className="text-2xl font-extrabold tracking-tight">{value}</h4>
         </div>
-        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-900 text-white">{icon}</div>
+        <div className="h-10 w-10 flex items-center justify-center rounded-xl brand-primary-btn">{icon}</div>
       </div>
     </div>
   );
@@ -546,7 +547,7 @@ function AdminReceipts({ api, isAdmin }) {
   return (
     <>
       {/* ================= Filters ================= */}
-      <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-6">
+      <section className="brand-card p-4 mb-6">
         <div className="flex items-center gap-2 mb-3 text-gray-600">
           <Filter size={16} />
           <b>فلاتر تحصيلات المحاسب</b>
@@ -614,7 +615,7 @@ function AdminReceipts({ api, isAdmin }) {
           <div className="md:col-span-6 flex justify-end">
             <button
               onClick={fetchForms}
-              className="bg-gray-900 text-white px-4 py-2 rounded-xl hover:opacity-95"
+              className="brand-primary-btn px-4 py-2 rounded-xl hover:opacity-95"
             >
               تحديث
             </button>
@@ -632,30 +633,30 @@ function AdminReceipts({ api, isAdmin }) {
           icon={<FileText />}
           label="إجمالي المعروض"
           value={counts.total}
-          tint="from-sky-500 to-indigo-500"
+          tint="from-sky-400 to-blue-800"
         />
         <KpiCard
           icon={<Clock3 />}
           label="Pending (إدمن)"
           value={counts.pending}
-          tint="from-amber-500 to-orange-500"
+          tint="from-blue-500 to-indigo-700"
         />
         <KpiCard
           icon={<CheckCircle2 />}
           label="Released (إدمن)"
           value={counts.released}
-          tint="from-emerald-500 to-teal-500"
+          tint="from-sky-400 to-blue-700"
         />
         <KpiCard
           icon={<XCircle />}
           label="Rejected (إدمن)"
           value={counts.rejected}
-          tint="from-rose-500 to-pink-500"
+          tint="from-sky-500 to-blue-900"
         />
       </section>
 
       {/* ================= Totals ================= */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mb-6">
+      <section className="brand-card p-4 mb-6">
         <h3 className="text-md font-semibold mb-3">
           إجماليات النتائج المعروضة
         </h3>
@@ -668,10 +669,10 @@ function AdminReceipts({ api, isAdmin }) {
       </section>
 
       {/* ================= Table ================= */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
-        <div className="overflow-x-auto">
+      <section className="brand-card p-4">
+        <div className="overflow-x-auto brand-table-wrap brand-scroll">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-slate-100/80">
               <tr>
                 <th className="p-2 border">التاريخ</th>
                 <th className="p-2 border">الفرع</th>
@@ -750,7 +751,7 @@ function AdminReceipts({ api, isAdmin }) {
                             )
                           );
                         }}
-                        className="w-full px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        className="w-full px-2 py-1 brand-muted-btn"
                       >
                         تفاصيل/استلام
                       </button>
@@ -777,7 +778,7 @@ function AdminReceipts({ api, isAdmin }) {
           ======================================================= */}
 {activeForm && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6">
+    <div className="brand-modal w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6">
 
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 z-10 border-b">
@@ -786,7 +787,7 @@ function AdminReceipts({ api, isAdmin }) {
         </h3>
         <button
           onClick={() => setActiveForm(null)}
-          className="border px-3 py-1 rounded-xl hover:bg-gray-50"
+          className="border px-3 py-1 rounded-xl hover:bg-slate-50/80"
         >
           إغلاق
         </button>
@@ -819,7 +820,7 @@ function AdminReceipts({ api, isAdmin }) {
       {/* APPS DETAILS */}
       <h4 className="font-bold text-md mb-2">تفاصيل التطبيقات</h4>
       <table className="min-w-full text-sm border mb-4">
-        <thead className="bg-gray-100">
+        <thead className="bg-slate-100/80">
           <tr>
             <th className="p-2 border">الاسم</th>
             <th className="p-2 border">المبلغ</th>
@@ -842,7 +843,7 @@ function AdminReceipts({ api, isAdmin }) {
       {/* BANK DETAILS */}
       <h4 className="font-bold text-md mb-2">تفاصيل البنك</h4>
       <table className="min-w-full text-sm border mb-4">
-        <thead className="bg-gray-100">
+        <thead className="bg-slate-100/80">
           <tr>
             <th className="p-2 border">النوع</th>
             <th className="p-2 border">المبلغ</th>
@@ -880,7 +881,7 @@ function AdminReceipts({ api, isAdmin }) {
               const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(att.fileUrl);
 
               return (
-                <li key={att._id} className="border rounded-xl bg-gray-50 overflow-hidden">
+                <li key={att._id} className="border rounded-xl bg-slate-50/80 overflow-hidden">
                   <a href={url} target="_blank" rel="noopener noreferrer">
                     {isImg ? (
                       <img src={url} alt="" className="w-full h-32 object-cover rounded" />
@@ -891,7 +892,7 @@ function AdminReceipts({ api, isAdmin }) {
 
                   <button
                     onClick={() => window.open(url, "_blank")}
-                    className="mt-2 mx-2 mb-2 w-[calc(100%-1rem)] rounded-xl bg-gray-900 text-white px-2 py-1 text-sm"
+                    className="mt-2 mx-2 mb-2 w-[calc(100%-1rem)] rounded-xl brand-primary-btn px-2 py-1 text-sm"
                   >
                     فتح
                   </button>
@@ -905,7 +906,7 @@ function AdminReceipts({ api, isAdmin }) {
       {/* ===== NOTES SECTION ===== */}
 
       {/* USER NOTE */}
-      <div className="mb-4 bg-gray-50 p-3 rounded-xl">
+      <div className="mb-4 bg-slate-50/80 p-3 rounded-xl">
         <div className="flex justify-between mb-1">
           <p className="text-sm text-gray-600">ملاحظة المستخدم:</p>
           <p className="text-sm text-gray-500">{activeForm.user?.name || "—"}</p>
@@ -914,7 +915,7 @@ function AdminReceipts({ api, isAdmin }) {
       </div>
 
       {/* ACCOUNTANT NOTE */}
-      <div className="mb-4 bg-gray-50 p-3 rounded-xl">
+      <div className="mb-4 bg-slate-50/80 p-3 rounded-xl">
         <div className="flex justify-between mb-1">
           <p className="text-sm text-gray-600">ملاحظات المحاسب:</p>
           <p className="text-sm text-gray-500">
@@ -927,7 +928,7 @@ function AdminReceipts({ api, isAdmin }) {
       </div>
 
       {/* BRANCH MANAGER NOTE */}
-      <div className="mb-6 bg-gray-50 p-3 rounded-xl">
+      <div className="mb-6 bg-slate-50/80 p-3 rounded-xl">
         <div className="flex justify-between mb-1">
           <p className="text-sm text-gray-600">ملاحظات مدير الفرع:</p>
           <p className="text-sm text-gray-500">
@@ -988,7 +989,7 @@ function AdminReceipts({ api, isAdmin }) {
         <button
           disabled={actLoading}
           onClick={doAdminReject}
-          className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700"
+          className="px-3 py-2 brand-danger-btn rounded-xl hover:bg-blue-800"
         >
           رفض
         </button>
@@ -996,7 +997,7 @@ function AdminReceipts({ api, isAdmin }) {
         <button
           disabled={actLoading}
           onClick={doAdminRelease}
-          className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+          className="px-3 py-2 brand-success-btn rounded-xl hover:bg-blue-800"
         >
           استلام
         </button>
@@ -1021,13 +1022,13 @@ function KpiCard({ icon, label, value, tint }) {
           <p className="text-xs text-gray-500">{label}</p>
           <h4 className="text-2xl font-extrabold tracking-tight">{value}</h4>
         </div>
-        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-900 text-white">{icon}</div>
+        <div className="h-10 w-10 flex items-center justify-center rounded-xl brand-primary-btn">{icon}</div>
       </div>
     </div>
   );
 }
 function MiniTotal({ title, value }) { return (<div><div className="text-gray-500">{title}</div><div className="text-xl font-bold">{value}</div></div>); }
-function MiniBox({ label, value }) { return (<div className="p-3 bg-gray-50 rounded-xl"><div className="text-gray-500">{label}</div><div className="font-bold">{value}</div></div>); }
+function MiniBox({ label, value }) { return (<div className="p-3 bg-slate-50/80 rounded-xl"><div className="text-gray-500">{label}</div><div className="font-bold">{value}</div></div>); }
 
 /* ---------------- Users (Admin-only add/edit/delete) ---------------- */
 function UsersPage({ api, isAdmin }) {
@@ -1155,7 +1156,7 @@ function UsersPage({ api, isAdmin }) {
   }
 
   return (
-    <div className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+    <div className="brand-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-md font-semibold">المستخدمون</h3>
         <div className="flex items-center gap-2">
@@ -1168,7 +1169,7 @@ function UsersPage({ api, isAdmin }) {
           {isAdmin && (
             <button
               onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg:black"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg:black"
             >
               <Plus size={16} /> إنشاء مستخدم
             </button>
@@ -1176,9 +1177,9 @@ function UsersPage({ api, isAdmin }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto brand-table-wrap brand-scroll">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-slate-100/80">
             <tr>
               <th className="p-2 border">الاسم</th>
               <th className="p-2 border">البريد</th>
@@ -1220,7 +1221,7 @@ function UsersPage({ api, isAdmin }) {
                       </button>
                       <button
                         onClick={() => deleteUser(u._id)}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text:white hover:opacity-90"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-blue-700 text:white hover:opacity-90"
                       >
                         <Trash2 size={14} />
                         حذف
@@ -1351,7 +1352,7 @@ function UsersPage({ api, isAdmin }) {
                 <button type="button" onClick={() => setCreateOpen(false)} className="px-3 py-1 border rounded-xl">
                   إلغاء
                 </button>
-                <button type="submit" disabled={creating} className="px-3 py-1 bg-gray-900 text-white rounded-xl disabled:opacity-60">
+                <button type="submit" disabled={creating} className="px-3 py-1 brand-primary-btn rounded-xl disabled:opacity-60">
                   {creating ? "جاري الإنشاء…" : "إنشاء"}
                 </button>
               </div>
@@ -1417,15 +1418,16 @@ function BranchesPage({ api, isAdmin }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="brand-app space-y-6 p-4 md:p-6">
+      <BrandPageStyle />
       {isAdmin && (
-        <form onSubmit={add} className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 flex gap-2">
+        <form onSubmit={add} className="brand-card p-4 flex gap-2">
           <input className="border rounded-xl p-2 flex-1" value={name} onChange={(e)=>setName(e.target.value)} placeholder="اسم الفرع" />
           <button className="bg-indigo-600 text-white px-4 rounded-xl">إضافة</button>
         </form>
       )}
 
-      <div className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+      <div className="brand-card p-4">
         <h3 className="text-md font-semibold mb-2">الفروع</h3>
         <ul className="grid md:grid-cols-3 gap-2">
           {branches.map(b=> (
@@ -1434,7 +1436,7 @@ function BranchesPage({ api, isAdmin }) {
               {isAdmin && (
                 <div className="flex items-center gap-2">
                   <button onClick={()=> { setEditing(b); setEditName(b.name||""); }} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-yellow-500 text-white hover:opacity-90"><Pencil size={14}/>تعديل</button>
-                  <button onClick={()=> del(b._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>حذف</button>
+                  <button onClick={()=> del(b._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl brand-danger-btn hover:opacity-90"><Trash2 size={14}/>حذف</button>
                 </div>
               )}
             </li>
@@ -1510,7 +1512,7 @@ function TemplatesPage({ api, isAdmin }) {
   return (
     <div className="space-y-6">
       {isAdmin && (
-        <div className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+        <div className="brand-card p-4">
           <h3 className="text-md font-semibold mb-3">إضافة طريقة</h3>
           <div className="flex gap-2">
             <input className="border rounded-xl p-2 flex-1" value={name} onChange={(e)=>setName(e.target.value)} placeholder="اسم الطريقة" />
@@ -1518,7 +1520,7 @@ function TemplatesPage({ api, isAdmin }) {
               <option value="applications">تطبيقات</option>
               <option value="bank">بنك</option>
             </select>
-            <button onClick={add} className="bg-gray-900 text-white px-4 rounded-xl">إضافة</button>
+            <button onClick={add} className="brand-primary-btn px-4 rounded-xl">إضافة</button>
           </div>
         </div>
       )}
@@ -1548,7 +1550,7 @@ function TemplatesPage({ api, isAdmin }) {
 
 function TemplateList({ title, items, onToggle, onEdit, onDelete, isAdmin }){
   return (
-    <div className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+    <div className="brand-card p-4">
       <h3 className="text-md font-semibold mb-3">{title}</h3>
       <ul className="space-y-2">
         {items.map((it)=> (
@@ -1559,7 +1561,7 @@ function TemplateList({ title, items, onToggle, onEdit, onDelete, isAdmin }){
                 <>
                   <button onClick={()=> onToggle(it._id, it.isActive)} className="text-xs px-3 py-1 rounded-xl bg-slate-700 text-white hover:opacity-90">{it.isActive ? "تعطيل" : "تفعيل"}</button>
                   <button onClick={()=> onEdit(it)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-yellow-500 text-white hover:opacity-90"><Pencil size={14}/>تعديل</button>
-                  <button onClick={()=> onDelete(it._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-600 text-white hover:opacity-90"><Trash2 size={14}/>حذف</button>
+                  <button onClick={()=> onDelete(it._id)} className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-xl brand-danger-btn hover:opacity-90"><Trash2 size={14}/>حذف</button>
                 </>
               )}
             </div>
@@ -1659,7 +1661,7 @@ function AdminReports({ api }) {
 
   return (
     <div className="space-y-6">
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+      <section className="brand-card p-4">
         <div className="flex items-center gap-2 mb-3 text-gray-600">
           <Filter size={16} />
           <b>فلاتر تقارير الإدمن (المستلم فقط)</b>
@@ -1692,7 +1694,7 @@ function AdminReports({ api }) {
                 const d = new Date();
                 const iso = (x) => x.toISOString().slice(0, 10);
                 setFilters(p => ({ ...p, startDate: iso(d), endDate: iso(d) }));
-              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">اليوم</button>
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80">اليوم</button>
               <button onClick={() => {
                 const d = new Date();
                 const day = d.getDay() || 7;
@@ -1700,14 +1702,14 @@ function AdminReports({ api }) {
                 start.setDate(d.getDate() - (day - 1));
                 const iso = (x) => x.toISOString().slice(0, 10);
                 setFilters(p => ({ ...p, startDate: iso(start), endDate: iso(d) }));
-              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الأسبوع</button>
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80">هذا الأسبوع</button>
               <button onClick={() => {
                 const d = new Date();
                 const start = new Date(d.getFullYear(), d.getMonth(), 1);
                 const iso = (x) => x.toISOString().slice(0, 10);
                 setFilters(p => ({ ...p, startDate: iso(start), endDate: iso(d) }));
-              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">هذا الشهر</button>
-              <button onClick={exportCSV} className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 inline-flex items-center gap-2">
+              }} className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80">هذا الشهر</button>
+              <button onClick={exportCSV} className="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50/80 inline-flex items-center gap-2">
                 <Download size={16} /> تصدير CSV
               </button>
             </div>
@@ -1717,18 +1719,18 @@ function AdminReports({ api }) {
 
       {/* إجماليات (received-only) */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={<FileText className="opacity-80" />} title="إجمالي النقدي" value={currency(sums.cash)} tint="from-amber-500 to-orange-500" />
-        <StatCard icon={<Layers3 className="opacity-80" />} title="إجمالي التطبيقات" value={currency(sums.apps)} tint="from-emerald-500 to-teal-500" />
-        <StatCard icon={<Layers3 className="opacity-80" />} title="إجمالي البنك" value={currency(sums.bank)} tint="from-sky-500 to-indigo-500" />
-        <StatCard icon={<CheckCircle2 className="opacity-80" />} title="الإجمالي الكلي" value={currency(sums.total)} tint="from-rose-500 to-pink-500" />
+        <StatCard icon={<FileText className="opacity-80" />} title="إجمالي النقدي" value={currency(sums.cash)} tint="from-blue-500 to-indigo-700" />
+        <StatCard icon={<Layers3 className="opacity-80" />} title="إجمالي التطبيقات" value={currency(sums.apps)} tint="from-sky-400 to-blue-700" />
+        <StatCard icon={<Layers3 className="opacity-80" />} title="إجمالي البنك" value={currency(sums.bank)} tint="from-sky-400 to-blue-800" />
+        <StatCard icon={<CheckCircle2 className="opacity-80" />} title="الإجمالي الكلي" value={currency(sums.total)} tint="from-sky-500 to-blue-900" />
       </section>
 
       {/* جدول السجلات (received-only) */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+      <section className="brand-card p-4">
         <h3 className="text-md font-semibold mb-3">السجلات المستلمة</h3>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto brand-table-wrap brand-scroll">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-slate-100/80">
               <tr>
                 <th className="p-2 border">التاريخ</th>
                 <th className="p-2 border">الفرع</th>
@@ -1772,7 +1774,7 @@ function AdminReports({ api }) {
 
       {/* عرض تفاصيل الفاتورة */}
       {selectedInvoice && (
-        <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 mt-6">
+        <section className="brand-card p-4 mt-6">
           <h3 className="text-md font-semibold mb-3">تفاصيل الفاتورة</h3>
           <div className="mb-4">
             <p><strong>التاريخ:</strong> {formatDateOnly(selectedInvoice.formDate)}</p>
@@ -1929,7 +1931,7 @@ function AllFormsPage({ api, isAdmin }) {
 
     if (k === "pending")
       return (
-        <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}>
+        <span className={`${base} bg-sky-50 text-blue-800 border-amber-200`}>
           <i className="fas fa-user-tie" /> قيد مراجعة المحاسب
         </span>
       );
@@ -1956,7 +1958,7 @@ function AllFormsPage({ api, isAdmin }) {
       );
 
     return (
-      <span className={`${base} bg-rose-50 text-rose-700 border-rose-200`}>
+      <span className={`${base} bg-sky-50 text-blue-800 border-rose-200`}>
         <i className="fas fa-times-circle" /> مرفوضة
       </span>
     );
@@ -2046,8 +2048,8 @@ function AllFormsPage({ api, isAdmin }) {
         >
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center">
-                <i className="fas fa-trash text-rose-600"></i>
+              <div className="w-10 h-10 rounded-xl bg-sky-50 border border-rose-100 flex items-center justify-center">
+                <i className="fas fa-trash text-blue-700"></i>
               </div>
 
               <div className="flex-1">
@@ -2062,14 +2064,14 @@ function AllFormsPage({ api, isAdmin }) {
                       toast.dismiss(t.id);
                       await deleteForm(id);
                     }}
-                    className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 text-sm font-semibold"
+                    className="px-4 py-2 rounded-xl brand-danger-btn hover:bg-blue-800 text-sm font-semibold"
                   >
                     نعم، احذف
                   </button>
 
                   <button
                     onClick={() => toast.dismiss(t.id)}
-                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold"
+                    className="px-4 py-2 rounded-xl bg-slate-100/80 text-gray-700 hover:bg-gray-200 text-sm font-semibold"
                   >
                     إلغاء
                   </button>
@@ -2146,11 +2148,11 @@ function AllFormsPage({ api, isAdmin }) {
                 key={s.key}
                 onClick={() => setFilters((p) => ({ ...p, status: s.key }))}
                 className={`px-3 py-2 rounded-2xl border text-sm font-bold flex items-center gap-2 transition
-                  ${active ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+                  ${active ? "brand-primary-btn border-gray-900" : "bg-white text-gray-700 hover:bg-slate-50/80"}`}
               >
                 <i className={`${s.icon}`} />
                 <span>{s.label}</span>
-                <span className={`${active ? "bg-white/20" : "bg-gray-100"} px-2 py-0.5 rounded-full text-xs`}>
+                <span className={`${active ? "bg-white/20" : "bg-slate-100/80"} px-2 py-0.5 rounded-full text-xs`}>
                   {s.count}
                 </span>
               </button>
@@ -2223,7 +2225,7 @@ function AllFormsPage({ api, isAdmin }) {
           <div className="md:col-span-12 flex flex-wrap gap-2 justify-end">
             <button
               onClick={() => setSortDir((p) => (p === "desc" ? "asc" : "desc"))}
-              className="px-4 py-2 rounded-2xl bg-white border hover:bg-gray-50 text-gray-700 font-extrabold text-sm"
+              className="px-4 py-2 rounded-2xl bg-white border hover:bg-slate-50/80 text-gray-700 font-extrabold text-sm"
               title="تغيير ترتيب التاريخ"
             >
               <i className="fas fa-sort ml-2"></i>
@@ -2236,7 +2238,7 @@ function AllFormsPage({ api, isAdmin }) {
                 setSortDir("desc");
                 setFilters({ q: "", branchId: "", userId: "", status: "" });
               }}
-              className="px-4 py-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-sm"
+              className="px-4 py-2 rounded-2xl bg-slate-100/80 hover:bg-gray-200 text-gray-700 font-extrabold text-sm"
             >
               <i className="fas fa-eraser ml-2"></i>
               مسح الفلاتر
@@ -2254,10 +2256,10 @@ function AllFormsPage({ api, isAdmin }) {
       </section>
 
       {/* Table */}
-      <section className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <section className="brand-card overflow-hidden">
+        <div className="overflow-x-auto brand-table-wrap brand-scroll">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100 sticky top-0 z-10">
+            <thead className="bg-slate-100/80 sticky top-0 z-10">
               <tr>
                 <th className="p-3 border text-right">السيريال</th>
                 <th className="p-3 border text-right">التاريخ</th>
@@ -2285,7 +2287,7 @@ function AllFormsPage({ api, isAdmin }) {
                 </tr>
               ) : sortedRows.length ? (
                 sortedRows.map((f) => (
-                  <tr key={f._id} className="hover:bg-gray-50">
+                  <tr key={f._id} className="hover:bg-slate-50/80">
                     <td className="p-3 border font-extrabold text-gray-900">
                       {f.serialNumber || "—"}
                     </td>
@@ -2310,7 +2312,7 @@ function AllFormsPage({ api, isAdmin }) {
                         <td className="p-3 border">
                           <button
                             onClick={() => confirmDeleteToast(f._id)}
-                            className="bg-rose-600 text-white px-3 py-2 rounded-2xl hover:bg-rose-700 w-full sm:w-auto font-extrabold"
+                            className="brand-danger-btn px-3 py-2 rounded-2xl hover:bg-blue-800 w-full sm:w-auto font-extrabold"
                           >
                             <i className="fas fa-trash-alt ml-2"></i>حذف
                           </button>
@@ -2346,7 +2348,7 @@ function AllFormsPage({ api, isAdmin }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={copySerial}
-                className="px-3 py-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-sm"
+                className="px-3 py-2 rounded-2xl brand-muted-btn font-extrabold text-sm"
                 title="نسخ السيريال"
               >
                 <i className="fas fa-copy ml-2"></i>نسخ السيريال
@@ -2354,7 +2356,7 @@ function AllFormsPage({ api, isAdmin }) {
 
               <button
                 onClick={closePreview}
-                className="w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                className="w-10 h-10 rounded-2xl bg-slate-100/80 hover:bg-gray-200 flex items-center justify-center"
                 aria-label="إغلاق"
               >
                 <i className="fas fa-times"></i>
@@ -2502,7 +2504,7 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-2xl border font-extrabold text-sm transition
-        ${active ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+        ${active ? "brand-primary-btn border-gray-900" : "bg-white text-gray-700 hover:bg-slate-50/80"}`}
     >
       {children}
     </button>
@@ -2536,7 +2538,7 @@ function MoneyCard({ title, value, icon }) {
           <div className="text-xs text-gray-500 font-semibold">{title}</div>
           <div className="text-lg font-extrabold text-gray-900 mt-1">{value}</div>
         </div>
-        <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-2xl bg-slate-100/80 flex items-center justify-center">
           <i className={`${icon} text-gray-700`}></i>
         </div>
       </div>
@@ -2556,7 +2558,7 @@ function MiniTable({ rows, emptyText }) {
   return (
     <div className="overflow-x-auto rounded-2xl border">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-50">
+        <thead className="bg-slate-50/80">
           <tr>
             <th className="p-2 border text-right">الاسم</th>
             <th className="p-2 border text-right">المبلغ</th>
@@ -2564,7 +2566,7 @@ function MiniTable({ rows, emptyText }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.key} className="hover:bg-gray-50">
+            <tr key={r.key} className="hover:bg-slate-50/80">
               <td className="p-2 border">{r.name}</td>
               <td className="p-2 border font-extrabold">{r.amount}</td>
             </tr>
@@ -2706,27 +2708,28 @@ function Timeline({ form, formatDateTime }) {
       );
     if (ar === "مرفوض")
       return (
-        <span className={`${base} bg-rose-50 text-rose-700 border-rose-200`}>
+        <span className={`${base} bg-sky-50 text-blue-800 border-rose-200`}>
           <i className="fas fa-times-circle"></i> مرفوض
         </span>
       );
     if (ar === "تم")
       return (
-        <span className={`${base} bg-gray-50 text-gray-700 border-gray-200`}>
+        <span className={`${base} bg-slate-50/80 text-gray-700 border-gray-200`}>
           <i className="fas fa-check"></i> تم
         </span>
       );
     return (
-      <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}>
+      <span className={`${base} bg-sky-50 text-blue-800 border-amber-200`}>
         <i className="fas fa-hourglass-half"></i> قيد المراجعة
       </span>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="brand-app space-y-3 p-4 md:p-6">
+      <BrandPageStyle />
       {steps.map((s, idx) => (
-        <div key={idx} className="rounded-2xl border bg-gray-50 p-4">
+        <div key={idx} className="rounded-2xl border bg-slate-50/80 p-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-white border flex items-center justify-center">

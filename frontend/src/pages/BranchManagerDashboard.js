@@ -36,6 +36,7 @@ import {
   Filler,
 } from "chart.js";
 import { Pie, Bar, Line } from "react-chartjs-2";
+import { BrandPageStyle } from "./brandTheme";
 Chart.register(
   ArcElement,
   BarElement,
@@ -79,7 +80,7 @@ function NavBtn({ icon, label, active, onClick }) {
     <button
       onClick={onClick}
       className={`px-3 py-2 rounded-xl text-sm inline-flex items-center gap-2 transition ${
-        active ? "bg-gray-900 text-white shadow" : "text-gray-700 hover:bg-gray-100"
+        active ? "brand-primary-btn shadow" : "text-gray-700 hover:bg-slate-100/80"
       }`}
     >
       {icon}
@@ -110,7 +111,7 @@ function MiniTotal({ title, value }) {
 }
 function ChartBox({ title, children }) {
   return (
-    <div className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+    <div className="brand-card p-4">
       <h3 className="font-semibold mb-3">{title}</h3>
       <div className="h-64">{children}</div>
     </div>
@@ -119,23 +120,23 @@ function ChartBox({ title, children }) {
 function StatusPill({ status }) {
   if (status === "released") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-sky-50 text-blue-800 border border-emerald-200">
+        <span className="h-2 w-2 rounded-full bg-sky-500" />
         Released
       </span>
     );
   }
   if (status === "rejected") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-        <span className="h-2 w-2 rounded-full bg-rose-500" />
+      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-sky-50 text-blue-800 border border-rose-200">
+        <span className="h-2 w-2 rounded-full bg-sky-500" />
         Rejected
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-      <span className="h-2 w-2 rounded-full bg-amber-500" />
+    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-sky-50 text-blue-800 border border-amber-200">
+      <span className="h-2 w-2 rounded-full bg-sky-500" />
       Pending
     </span>
   );
@@ -200,11 +201,11 @@ function DropdownMultiSelect({
                 <button
                   key={opt.value}
                   onClick={() => toggleValue(opt.value)}
-                  className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-slate-100/80 text-sm"
                 >
                   <div
                     className={`w-4 h-4 border rounded flex items-center justify-center ${
-                      checked ? "bg-emerald-500 text-white" : "bg-white text-transparent"
+                      checked ? "bg-sky-500 text-white" : "bg-white text-transparent"
                     }`}
                   >
                     <Check size={12} />
@@ -250,7 +251,7 @@ function FiltersBar({
 
   return (
     <section
-      className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4"
+      className="brand-card p-4"
       data-html2canvas-ignore
     >
       <div className="flex items-center justify-between mb-3">
@@ -264,13 +265,13 @@ function FiltersBar({
         <div className="flex items-center gap-2">
           <button
             onClick={onRefresh}
-            className="bg-gray-900 text-white px-3 py-2 rounded-xl hover:opacity-95 transition h-[40px]"
+            className="brand-primary-btn px-3 py-2 rounded-xl hover:opacity-95 transition h-[40px]"
           >
             تحديث النتائج
           </button>
           <button
             onClick={clearAll}
-            className="px-3 py-2 rounded-xl border hover:bg-gray-50 h-[40px]"
+            className="px-3 py-2 rounded-xl border hover:bg-slate-50/80 h-[40px]"
             title="مسح كل الفلاتر"
           >
             مسح الكل
@@ -650,7 +651,8 @@ const totals = useMemo(() => {
   };
 
   return (
-    <div className="space-y-6" ref={boardRef}>
+    <div className="brand-app space-y-6 p-4 md:p-6" ref={boardRef}>
+      <BrandPageStyle />
       {/* Header & Tips */}
       <div className="flex items-center gap-2 text-gray-700">
         <Info size={16} className="opacity-60" />
@@ -670,7 +672,7 @@ const totals = useMemo(() => {
         <ColorCard
           title="Pending"
           value={statsCards.pending}
-          color="from-amber-400 to-yellow-500"
+          color="from-sky-400 to-yellow-500"
           icon={<Clock3 />}
         />
         <ColorCard
@@ -696,7 +698,7 @@ const totals = useMemo(() => {
       </section>
 
       {/* Totals */}
-      <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4 overflow-visible">
+      <section className="brand-card p-4 overflow-visible">
         <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
 <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
   <MiniTotal title="نقدي" value={currency(totals.cash)} />
@@ -720,16 +722,16 @@ const totals = useMemo(() => {
       />
 
 {/* Table */}
-<section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+<section className="brand-card p-4">
   <div className="flex items-center justify-between mb-3">
     <h3 className="font-semibold">
       {title} ({filteredForms.length})
     </h3>
   </div>
 
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto brand-table-wrap brand-scroll">
     <table className="min-w-full text-sm border rounded-xl overflow-hidden">
-      <thead className="bg-gray-100 text-center">
+      <thead className="bg-slate-100/80 text-center">
         <tr>
           <th className="p-2 border">رقم التقرير</th>
           <th className="p-2 border">التاريخ</th>
@@ -754,7 +756,7 @@ const totals = useMemo(() => {
           </tr>
         ) : filteredForms.length ? (
           filteredForms.map((f) => (
-            <tr key={f._id} className="text-center hover:bg-gray-50">
+            <tr key={f._id} className="text-center hover:bg-slate-50/80">
 
               {/* 🔢 رقم التقرير */}
               <td className="p-2 border font-mono text-xs font-semibold text-indigo-700">
@@ -820,13 +822,13 @@ const totals = useMemo(() => {
                   <div className="flex items-center justify-center gap-2">
                     <button
                       onClick={() => onAction(f, "release")}
-                      className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                      className="px-2 py-1 text-xs brand-success-btn rounded hover:bg-blue-800"
                     >
                       Release
                     </button>
                     <button
                       onClick={() => onAction(f, "reject")}
-                      className="px-2 py-1 text-xs bg-rose-600 text-white rounded hover:bg-rose-700"
+                      className="px-2 py-1 text-xs brand-danger-btn rounded hover:bg-blue-800"
                     >
                       Reject
                     </button>
@@ -899,7 +901,7 @@ const totals = useMemo(() => {
             setReviewNote("");
             setReviewAction("");
           }}
-          className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+          className="px-4 py-2 rounded-xl border hover:bg-slate-50/80"
         >
           إلغاء
         </button>
@@ -907,8 +909,8 @@ const totals = useMemo(() => {
           onClick={confirmAction}
           className={`px-4 py-2 rounded-xl text-white ${
             reviewAction === "release"
-              ? "bg-emerald-600 hover:bg-emerald-700"
-              : "bg-rose-600 hover:bg-rose-700"
+              ? "bg-blue-700 hover:bg-blue-800"
+              : "bg-blue-700 hover:bg-blue-800"
           }`}
         >
           تأكيد
@@ -945,7 +947,7 @@ const totals = useMemo(() => {
                   setReviewNote("");
                   setReviewAction("");
                 }}
-                className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+                className="px-4 py-2 rounded-xl border hover:bg-slate-50/80"
               >
                 إلغاء
               </button>
@@ -953,8 +955,8 @@ const totals = useMemo(() => {
                 onClick={confirmAction}
                 className={`px-4 py-2 rounded-xl text-white ${
                   reviewAction === "release"
-                    ? "bg-emerald-600 hover:bg-emerald-700"
-                    : "bg-rose-600 hover:bg-rose-700"
+                    ? "bg-blue-700 hover:bg-blue-800"
+                    : "bg-blue-700 hover:bg-blue-800"
                 }`}
               >
                 تأكيد
@@ -985,14 +987,14 @@ export default function BranchManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-emerald-50">
+    <div className="min-h-screen brand-app">
       <Toaster position="top-center" toastOptions={{ duration: 2200 }} />
 
       {/* Navbar */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b border-white/60">
+      <header className="sticky top-0 z-40 backdrop-blur brand-shell border-b border-white/60">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-sky-500 to-emerald-400 shadow-lg" />
+            <div className="brand-logo-badge" />
             <div>
               <p className="text-xs text-gray-500">لوحة التحكم</p>
               <h1 className="text-lg font-bold tracking-tight">مدير فرع</h1>
@@ -1033,7 +1035,7 @@ export default function BranchManagerDashboard() {
             </span>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow"
             >
               <LogOut size={16} />
               <span>تسجيل خروج</span>
@@ -1071,7 +1073,7 @@ export default function BranchManagerDashboard() {
                 setTab("pending");
                 setMenuOpen(false);
               }}
-              className="px-4 py-3 text-left hover:bg-gray-100"
+              className="px-4 py-3 text-left hover:bg-slate-100/80"
             >
               قيد المراجعة
             </button>
@@ -1080,7 +1082,7 @@ export default function BranchManagerDashboard() {
                 setTab("released");
                 setMenuOpen(false);
               }}
-              className="px-4 py-3 text-left hover:bg-gray-100"
+              className="px-4 py-3 text-left hover:bg-slate-100/80"
             >
               تم الاعتماد
             </button>
@@ -1089,7 +1091,7 @@ export default function BranchManagerDashboard() {
                 setTab("rejected");
                 setMenuOpen(false);
               }}
-              className="px-4 py-3 text-left hover:bg-gray-100"
+              className="px-4 py-3 text-left hover:bg-slate-100/80"
             >
               تم الرفض
             </button>
@@ -1098,7 +1100,7 @@ export default function BranchManagerDashboard() {
                 setTab("all");
                 setMenuOpen(false);
               }}
-              className="px-4 py-3 text-left hover:bg-gray-100"
+              className="px-4 py-3 text-left hover:bg-slate-100/80"
             >
               الكل (تحليل)
             </button>
@@ -1373,7 +1375,8 @@ const totals = useMemo(() => {
   };
 
   return (
-    <div className="space-y-6" ref={boardRef}>
+    <div className="brand-app space-y-6 p-4 md:p-6" ref={boardRef}>
+      <BrandPageStyle />
       {/* Cards */}
       <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <ColorCard
@@ -1385,7 +1388,7 @@ const totals = useMemo(() => {
         <ColorCard
           title="Pending"
           value={statusCounts.pending}
-          color="from-amber-400 to-yellow-500"
+          color="from-sky-400 to-yellow-500"
           icon={<Clock3 />}
         />
         <ColorCard
@@ -1411,7 +1414,7 @@ const totals = useMemo(() => {
       </section>
 
       {/* Totals */}
-      <section className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+      <section className="brand-card p-4">
         <h3 className="text-md font-semibold mb-3">إجماليات النتائج المعروضة</h3>
 <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
   <MiniTotal title="نقدي" value={currency(totals.cash)} />
@@ -1491,7 +1494,7 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
 
           <button
             onClick={exportPDF}
-            className="px-3 py-1 text-xs bg-gray-900 text-white rounded-xl hover:bg-black flex items-center gap-1"
+            className="px-3 py-1 text-xs brand-primary-btn rounded-xl hover:bg-black flex items-center gap-1"
           >
             <Download size={14} />
             PDF
@@ -1511,7 +1514,7 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
 
           {/* Basic Info */}
 {/* Basic Info */}
-<div className="space-y-1 text-sm bg-gray-50 p-3 rounded-xl mb-4">
+<div className="space-y-1 text-sm bg-slate-50/80 p-3 rounded-xl mb-4">
   <p><b>رقم التقرير:</b> {form.serialNumber}</p>
   <p><b>التاريخ:</b> {formatDateOnly(form.formDate)}</p>
   {/*<p>
@@ -1537,7 +1540,7 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
             <h4 className="font-semibold mb-2">تفاصيل التطبيقات</h4>
             {form.applications?.length ? (
               <table className="w-full text-sm border">
-                <thead className="bg-gray-100">
+                <thead className="bg-slate-100/80">
                   <tr>
                     <th className="p-2 border">الطريقة</th>
                     <th className="p-2 border">القيمة</th>
@@ -1562,7 +1565,7 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
             <h4 className="font-semibold mb-2">تفاصيل البنك</h4>
             {form.bankCollections?.length ? (
               <table className="w-full text-sm border">
-                <thead className="bg-gray-100">
+                <thead className="bg-slate-100/80">
                   <tr>
                     <th className="p-2 border">الطريقة</th>
                     <th className="p-2 border">القيمة</th>
@@ -1624,13 +1627,13 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
             <>
               <button
                 onClick={() => onAction(form, "release")}
-                className="px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+                className="px-3 py-2 brand-success-btn rounded-xl hover:bg-blue-800"
               >
                 Release
               </button>
               <button
                 onClick={() => onAction(form, "reject")}
-                className="px-3 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700"
+                className="px-3 py-2 brand-danger-btn rounded-xl hover:bg-blue-800"
               >
                 Reject
               </button>
@@ -1638,7 +1641,7 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
           )}
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
+            className="px-4 py-2 rounded-xl brand-muted-btn"
           >
             إغلاق
           </button>
@@ -1647,4 +1650,3 @@ function DetailsModal({ form, onClose, attachments, attLoading, onAction }) {
     </div>
   );
 }
-

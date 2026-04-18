@@ -26,6 +26,7 @@ import {
   Filler,
 } from "chart.js";
 import { Pie, Line } from "react-chartjs-2";
+import { BrandPageStyle } from "./brandTheme";
 Chart.register(
   ArcElement,
   BarElement,
@@ -178,7 +179,7 @@ const handleSubmit = async (e) => {
         <div className="flex justify-end gap-2">
           <button
             onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50"
+            className="px-3 py-1.5 rounded-lg border text-sm hover:bg-slate-50/80"
           >
             إلغاء
           </button>
@@ -256,7 +257,7 @@ const handleSubmit = async (e) => {
                 );
               }
             }}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+            className="px-3 py-1.5 rounded-lg brand-success-btn text-sm hover:bg-blue-800"
           >
             تأكيد الإرسال
           </button>
@@ -350,15 +351,16 @@ const handleSubmit = async (e) => {
   }, [forms, q]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50">
+    <div className="brand-app min-h-screen">
+      <BrandPageStyle />
       {/* Toast Notifications */}
       <Toaster position="top-center" reverseOrder={false} />
 
       {/* Navbar */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b border-white/60">
+      <header className="sticky top-0 z-40 backdrop-blur brand-shell border-b border-white/60">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-400 shadow-lg" />
+            <div className="brand-logo-badge" />
             <div>
               <p className="text-xs text-gray-500">لوحة المستخدم</p>
               <h1 className="text-lg font-bold tracking-tight">
@@ -372,7 +374,7 @@ const handleSubmit = async (e) => {
             </span>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition shadow"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow"
             >
               <LogOut size={16} />
               <span>تسجيل خروج</span>
@@ -387,30 +389,30 @@ const handleSubmit = async (e) => {
             icon={<FilePlus2 className="opacity-80" />}
             title="إنشاء جديد"
             value="Form"
-            tint="from-indigo-500 to-sky-500"
+            tint="from-cyan-400 to-blue-700"
           />
           <StatCard
             icon={<Wallet className="opacity-80" />}
             title="إجمالي التطبيقات (لايف)"
             value={appsTotal.toLocaleString()}
-            tint="from-emerald-500 to-teal-500"
+            tint="from-sky-400 to-blue-700"
           />
           <StatCard
             icon={<Banknote className="opacity-80" />}
             title="إجمالي البنك (لايف)"
             value={bankTotal.toLocaleString()}
-            tint="from-amber-500 to-orange-500"
+            tint="from-blue-500 to-indigo-700"
           />
           <StatCard
             icon={<TrendingUp className="opacity-80" />}
             title="إجمالي المبيعات (لايف)"
             value={totalSalesLive.toLocaleString()}
-            tint="from-rose-500 to-pink-500"
+            tint="from-sky-500 to-blue-900"
           />
         </section>
 
         {/* الفورم */}
-        <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-6 mb-8">
+        <section className="brand-card p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4">إنشاء فورم جديد</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* التاريخ + الفرع */}
@@ -510,7 +512,7 @@ const handleSubmit = async (e) => {
   step="0.01"
                   value={actualSalesAuto}
                   disabled
-                  className="border p-2 rounded-xl w-full bg-gray-100 text-gray-600 cursor-not-allowed"
+                  className="border p-2 rounded-xl w-full bg-slate-100/80 text-gray-600 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -536,7 +538,7 @@ const handleSubmit = async (e) => {
 
             <button
               type="submit"
-              className="w-full bg-gray-900 text-white py-2 rounded-xl hover:opacity-95"
+              className="w-full brand-primary-btn py-2 rounded-xl hover:opacity-95"
             >
               إضافة فورم
             </button>
@@ -545,13 +547,13 @@ const handleSubmit = async (e) => {
 
         {/* شارتات */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+          <div className="brand-card p-4">
             <h3 className="font-semibold mb-3">حالة تقاريري</h3>
             <div className="h-64">
               <Pie data={statusPie} options={commonOptions} />
             </div>
           </div>
-          <div className="bg-white/70 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+          <div className="brand-card p-4">
             <h3 className="font-semibold mb-3">عدد التقارير باليوم</h3>
             <div className="h-64">
               <Line
@@ -565,7 +567,7 @@ const handleSubmit = async (e) => {
           </div>
         </section>
         {/* جدول الفورمز */}
-        <section className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-sm p-4">
+        <section className="brand-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-md font-semibold">الفورمز الخاصة بي</h2>
             <div className="flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
@@ -581,16 +583,16 @@ const handleSubmit = async (e) => {
 
           <button
             onClick={() => setShowForms(!showForms)}
-            className="mb-3 w-full bg-gray-900 text-white py-2 rounded-xl hover:opacity-95"
+            className="mb-3 w-full brand-primary-btn py-2 rounded-xl hover:opacity-95"
           >
             {showForms ? "إخفاء الفورمز" : "عرض التقارير الخاصة بي"}
           </button>
 
           {showForms && (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto brand-table-wrap brand-scroll">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-slate-100/80">
                     <tr>
                       <th className="p-2 border">رقم التقرير</th>
                       <th className="p-2 border">التاريخ</th>
@@ -647,7 +649,7 @@ const handleSubmit = async (e) => {
                               ? "text-green-600"
                               : f.accountantRelease?.status === "rejected"
                               ? "text-red-600"
-                              : "text-amber-600"
+                              : "text-blue-700"
                           }`}
                         >
                           {f.accountantRelease?.status || "pending"}
@@ -670,7 +672,7 @@ const handleSubmit = async (e) => {
                 </table>
               </div>
 
-              {/*<div className="mt-4 p-4 bg-emerald-50 rounded-xl font-bold text-right">
+              {/*<div className="mt-4 p-4 bg-sky-50 rounded-xl font-bold text-right">
                 ملخص التقارير (إجمالي المبيعات):{" "}
                 {totalDailySales.toLocaleString()}
               </div>*/}
@@ -710,7 +712,7 @@ const handleSubmit = async (e) => {
               )}
               <button
                 onClick={() => setSelectedAttachments(null)}
-                className="mt-4 w-full bg-gray-900 text-white py-2 rounded-xl hover:opacity-95"
+                className="mt-4 w-full brand-primary-btn py-2 rounded-xl hover:opacity-95"
               >
                 إغلاق
               </button>
@@ -734,7 +736,7 @@ function StatCard({ icon, title, value, tint }) {
           <p className="text-xs text-gray-500">{title}</p>
           <h4 className="text-2xl font-extrabold tracking-tight">{value}</h4>
         </div>
-        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-900 text-white">
+        <div className="h-10 w-10 flex items-center justify-center rounded-xl brand-primary-btn">
           {icon}
         </div>
       </div>
@@ -923,7 +925,7 @@ function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) 
         onClick={() =>
           setRows([...rows, { templateId: "", name: "", amount: 0 }])
         }
-        className="mt-2 bg-emerald-600 text-white px-3 py-1 rounded-xl text-sm"
+        className="mt-2 brand-success-btn px-3 py-1 rounded-xl text-sm"
       >
         {addLabel}
       </button>
@@ -931,5 +933,4 @@ function DynamicRows({ title, rows, setRows, templates, addLabel, totalLabel }) 
     </div>
   );
 }
-
 
