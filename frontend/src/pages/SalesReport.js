@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Filter, Download } from "lucide-react";
+import { BrandPageStyle } from "./brandTheme";
 
 export default function SalesReport({ api }) {
   const [branches, setBranches] = useState([]);
@@ -122,14 +123,15 @@ export default function SalesReport({ api }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="brand-app space-y-6 p-4 md:p-6">
+      <BrandPageStyle />
       {/* ================= Header ================= */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">📊 تقرير المبيعات</h1>
       </div>
 
       {/* ================= Filters ================= */}
-      <section className="bg-white/80 backdrop-blur rounded-2xl border shadow-sm p-4 space-y-3">
+      <section className="brand-card p-4 space-y-3">
         <div className="flex items-center gap-2 text-gray-600">
           <Filter size={16} />
           <b>الفلاتر</b>
@@ -192,14 +194,14 @@ export default function SalesReport({ api }) {
           <div className="md:col-span-2 flex gap-2">
             <button
               onClick={loadTable}
-              className="bg-gray-900 text-white px-4 py-2 rounded-xl"
+              className="brand-primary-btn px-4 py-2 rounded-xl"
             >
               تحديث يدوي
             </button>
 
             <button
               onClick={exportExcel}
-              className="bg-emerald-600 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+              className="brand-success-btn px-4 py-2 rounded-xl inline-flex items-center gap-2"
             >
               <Download size={16} />
               Excel
@@ -209,7 +211,7 @@ export default function SalesReport({ api }) {
       </section>
 
       {/* ================= Report Header ================= */}
-      <section className="bg-white rounded-2xl border shadow-sm p-6 flex items-center gap-6">
+      <section className="brand-card p-6 flex items-center gap-6">
         <img src="/tahseely.png" alt="Tahseely" className="h-16" />
         <div>
           <h2 className="text-xl font-bold">تقرير مبيعات الفروع</h2>
@@ -231,11 +233,11 @@ export default function SalesReport({ api }) {
       </section>
 
       {/* ================= Table ================= */}
-      <section className="bg-white rounded-2xl border shadow-sm p-4 overflow-x-auto">
+      <section className="brand-card p-4 overflow-x-auto">
         <h3 className="text-md font-semibold mb-3">نتائج التقرير</h3>
 
         <table className="min-w-full text-sm border">
-          <thead className="bg-gray-100">
+          <thead className="bg-slate-100/80">
             <tr>
               <th className="border p-2">التاريخ</th>
               <th className="border p-2">الفرع</th>

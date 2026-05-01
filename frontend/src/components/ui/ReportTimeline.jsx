@@ -1,26 +1,30 @@
-// src/components/ReportTimeline.jsx
 import {
-  Clock,
+  Clock3,
   CheckCircle2,
   XCircle,
   RotateCcw,
+  FileText,
 } from "lucide-react";
 
-function Step({ label, at, icon, color, muted }) {
+function Step({ label, at, icon, color, softColor, muted }) {
   return (
-    <li className="mb-6 ms-6">
+    <li className="relative mb-6 ms-6">
       <span
-        className={`absolute -start-3 flex items-center justify-center w-6 h-6 rounded-full text-white ${color} ${
-          muted ? "opacity-40" : ""
+        className={`absolute -start-3 top-0 flex h-7 w-7 items-center justify-center rounded-full border-4 border-white text-white shadow-sm ${color} ${
+          muted ? "opacity-50" : ""
         }`}
       >
         {icon}
       </span>
 
-      <div className={`text-sm ${muted ? "text-gray-400" : ""}`}>
-        <div className="font-medium">{label}</div>
+      <div
+        className={`rounded-2xl border px-4 py-3 shadow-sm ${softColor} ${
+          muted ? "opacity-60" : ""
+        }`}
+      >
+        <div className="font-semibold text-slate-800">{label}</div>
         {at && (
-          <div className="text-gray-500 text-xs">
+          <div className="mt-1 text-xs text-slate-500">
             {new Date(at).toLocaleString("ar-EG", {
               dateStyle: "medium",
               timeStyle: "short",
@@ -33,31 +37,31 @@ function Step({ label, at, icon, color, muted }) {
 }
 
 export default function ReportTimeline({ form }) {
-  const acc = form.accountantRelease || {};
-  const mgr = form.branchManagerRelease || {};
-  const admin = form.adminRelease || {};
+  const acc = form?.accountantRelease || {};
+  const mgr = form?.branchManagerRelease || {};
+  const admin = form?.adminRelease || {};
 
   const steps = [];
 
-  /* ========= إنشاء التقرير ========= */
   steps.push(
     <Step
       key="created"
       label="تم إنشاء التقرير"
-      at={form.createdAt}
-      icon={<Clock size={14} />}
-      color="bg-gray-400"
+      at={form?.createdAt}
+      icon={<FileText size={14} />}
+      color="bg-slate-500"
+      softColor="bg-slate-50 border-slate-200"
     />
   );
 
-  /* ========= المحاسب ========= */
   if (!acc.status || acc.status === "pending") {
     steps.push(
       <Step
         key="acc-pending"
         label="في انتظار اعتماد المحاسب"
-        icon={<Clock size={14} />}
+        icon={<Clock3 size={14} />}
         color="bg-amber-500"
+        softColor="bg-amber-50 border-amber-200"
       />
     );
     return render(steps);
@@ -70,7 +74,8 @@ export default function ReportTimeline({ form }) {
         label="تم اعتماد التقرير من المحاسب"
         at={acc.at}
         icon={<CheckCircle2 size={14} />}
-        color="bg-emerald-600"
+        color="bg-sky-700"
+        softColor="bg-sky-50 border-sky-200"
       />
     );
   } else {
@@ -81,19 +86,20 @@ export default function ReportTimeline({ form }) {
         at={acc.at}
         icon={<XCircle size={14} />}
         color="bg-rose-600"
+        softColor="bg-rose-50 border-rose-200"
       />
     );
     return render(steps);
   }
 
-  /* ========= مدير الفرع ========= */
   if (!mgr.status || mgr.status === "pending") {
     steps.push(
       <Step
         key="mgr-pending"
         label="في انتظار اعتماد مدير الفرع"
-        icon={<Clock size={14} />}
+        icon={<Clock3 size={14} />}
         color="bg-amber-500"
+        softColor="bg-amber-50 border-amber-200"
       />
     );
     return render(steps);
@@ -106,7 +112,8 @@ export default function ReportTimeline({ form }) {
         label="تم اعتماد التقرير من مدير الفرع"
         at={mgr.at}
         icon={<CheckCircle2 size={14} />}
-        color="bg-indigo-600"
+        color="bg-cyan-700"
+        softColor="bg-cyan-50 border-cyan-200"
       />
     );
   } else {
@@ -117,6 +124,7 @@ export default function ReportTimeline({ form }) {
         at={mgr.at}
         icon={<XCircle size={14} />}
         color="bg-rose-600"
+        softColor="bg-rose-50 border-rose-200"
       />
     );
 
@@ -126,20 +134,21 @@ export default function ReportTimeline({ form }) {
         label="تم إرجاع التقرير إلى المحاسب لإعادة المراجعة"
         icon={<RotateCcw size={14} />}
         color="bg-orange-500"
+        softColor="bg-orange-50 border-orange-200"
       />
     );
 
     return render(steps);
   }
 
-  /* ========= الأدمن ========= */
   if (!admin.status || admin.status === "pending") {
     steps.push(
       <Step
         key="admin-pending"
         label="في انتظار اعتماد الأدمن"
-        icon={<Clock size={14} />}
+        icon={<Clock3 size={14} />}
         color="bg-amber-500"
+        softColor="bg-amber-50 border-amber-200"
       />
     );
     return render(steps);
@@ -152,7 +161,8 @@ export default function ReportTimeline({ form }) {
         label="تم اعتماد التقرير نهائيًا"
         at={admin.at}
         icon={<CheckCircle2 size={14} />}
-        color="bg-green-700"
+        color="bg-emerald-600"
+        softColor="bg-emerald-50 border-emerald-200"
       />
     );
   } else {
@@ -163,6 +173,7 @@ export default function ReportTimeline({ form }) {
         at={admin.at}
         icon={<XCircle size={14} />}
         color="bg-rose-700"
+        softColor="bg-rose-50 border-rose-200"
       />
     );
 
@@ -172,6 +183,7 @@ export default function ReportTimeline({ form }) {
         label="تم إرجاع التقرير إلى مدير الفرع"
         icon={<RotateCcw size={14} />}
         color="bg-orange-500"
+        softColor="bg-orange-50 border-orange-200"
       />
     );
   }
@@ -179,12 +191,24 @@ export default function ReportTimeline({ form }) {
   return render(steps);
 }
 
-/* ========= Wrapper ========= */
 function render(steps) {
   return (
-    <div className="bg-white border rounded-xl p-4 mb-4">
-      <h4 className="font-semibold mb-3">سجل حالة التقرير</h4>
-      <ol className="relative border-s border-gray-200 ms-3">{steps}</ol>
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+          <Clock3 size={18} />
+        </div>
+        <div>
+          <h4 className="font-bold text-slate-800">سجل حالة التقرير</h4>
+          <p className="text-xs text-slate-500">
+            تسلسل الاعتماد من الإنشاء حتى القرار النهائي
+          </p>
+        </div>
+      </div>
+
+      <ol className="relative border-s-2 border-slate-200 ms-3">
+        {steps}
+      </ol>
     </div>
   );
 }
