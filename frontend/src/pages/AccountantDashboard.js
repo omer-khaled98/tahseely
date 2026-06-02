@@ -11,7 +11,6 @@ import {
   XCircle,
   Clock3,
   LayoutGrid,
-  Download,
   Plus,
   Minus,
   Edit3,
@@ -47,6 +46,13 @@ const salesOnlyTotal = (f) =>
 const grandWithPurchases = (f) =>
   salesOnlyTotal(f) + Number(f?.purchases || 0);
 
+const tabActiveClasses = {
+  pending: "bg-amber-600 text-white",
+  approved: "bg-emerald-600 text-white",
+  rejected: "bg-rose-600 text-white",
+  all: "bg-gray-600 text-white",
+};
+
 /* ================= Component ================= */
 export default function AccountantDashboard() {
   const api = useApi();
@@ -54,10 +60,10 @@ export default function AccountantDashboard() {
 
   /* ---------- Tabs ---------- */
   const tabs = [
-    { key: "pending", label: "قيد المراجعة", color: "amber", icon: <Clock3 size={16} /> },
-    { key: "approved", label: "تم الاعتماد", color: "emerald", icon: <CheckCircle2 size={16} /> },
-    { key: "rejected", label: "تم الرفض", color: "rose", icon: <XCircle size={16} /> },
-    { key: "all", label: "الكل (تحليل)", color: "gray", icon: <LayoutGrid size={16} /> },
+    { key: "pending", label: "قيد المراجعة", icon: <Clock3 size={16} /> },
+    { key: "approved", label: "تم الاعتماد", icon: <CheckCircle2 size={16} /> },
+    { key: "rejected", label: "تم الرفض", icon: <XCircle size={16} /> },
+    { key: "all", label: "الكل (تحليل)", icon: <LayoutGrid size={16} /> },
   ];
   const [tab, setTab] = useState("pending");
 
@@ -66,17 +72,17 @@ export default function AccountantDashboard() {
   const [forms, setForms] = useState([]);
 
   // templates (admin DB): names for filters
-  const [bankTemplates, setBankTemplates] = useState([]);     // [{_id,name}]
-  const [appTemplates, setAppTemplates] = useState([]);       // [{_id,name}]
+  const [bankTemplates, setBankTemplates] = useState([]); // [{_id,name}]
+  const [appTemplates, setAppTemplates] = useState([]); // [{_id,name}]
 
   /* ---------- Filters (multi) ---------- */
   const [filters, setFilters] = useState({
-    branchIds: [],    // multi
+    branchIds: [], // multi
     startDate: "",
     endDate: "",
     q: "",
-    bankNames: [],    // multi
-    appNames: [],     // multi
+    bankNames: [], // multi
+    appNames: [], // multi
   });
 
   const [loading, setLoading] = useState(false);
@@ -181,10 +187,22 @@ export default function AccountantDashboard() {
   // Fetch admin templates (applications/bank). If API unavailable, fallback later from forms.
   const fetchTemplates = async () => {
     try {
-      const appsTry = await api.get("/api/report-templates", { params: { group: "applications", isActive: true } });
-      const bankTry = await api.get("/api/report-templates", { params: { group: "bank", isActive: true } });
-      setAppTemplates((appsTry.data || []).map(t => ({ _id: t._id, name: t.name })).filter(x => x.name));
-      setBankTemplates((bankTry.data || []).map(t => ({ _id: t._id, name: t.name })).filter(x => x.name));
+      const appsTry = await api.get("/api/report-templates", {
+        params: { group: "applications", isActive: true },
+      });
+      const bankTry = await api.get("/api/report-templates", {
+        params: { group: "bank", isActive: true },
+      });
+      setAppTemplates(
+        (appsTry.data || [])
+          .map((t) => ({ _id: t._id, name: t.name }))
+          .filter((x) => x.name)
+      );
+      setBankTemplates(
+        (bankTry.data || [])
+          .map((t) => ({ _id: t._id, name: t.name }))
+          .filter((x) => x.name)
+      );
     } catch {
       // fallback from forms later
       setAppTemplates([]);
@@ -213,17 +231,25 @@ export default function AccountantDashboard() {
 
       // لو التمبلتس فاضية من API، هنبني distinct names من الداتا:
       if (appTemplates.length === 0 || bankTemplates.length === 0) {
-        const appSet = new Set(appTemplates.map(x => x.name));
-        const bankSet = new Set(bankTemplates.map(x => x.name));
-        data.forEach(f => {
-          (f.applications || []).forEach(a => a?.name && appSet.add(a.name));
-          (f.bankCollections || []).forEach(b => b?.name && bankSet.add(b.name));
+        const appSet = new Set(appTemplates.map((x) => x.name));
+        const bankSet = new Set(bankTemplates.map((x) => x.name));
+        data.forEach((f) => {
+          (f.applications || []).forEach((a) => a?.name && appSet.add(a.name));
+          (f.bankCollections || []).forEach((b) => b?.name && bankSet.add(b.name));
         });
         if (appTemplates.length === 0) {
-          setAppTemplates(Array.from(appSet).filter(Boolean).map(n => ({ _id: n, name: n })));
+          setAppTemplates(
+            Array.from(appSet)
+              .filter(Boolean)
+              .map((n) => ({ _id: n, name: n }))
+          );
         }
         if (bankTemplates.length === 0) {
-          setBankTemplates(Array.from(bankSet).filter(Boolean).map(n => ({ _id: n, name: n })));
+          setBankTemplates(
+            Array.from(bankSet)
+              .filter(Boolean)
+              .map((n) => ({ _id: n, name: n }))
+          );
         }
       }
 
@@ -257,7 +283,9 @@ export default function AccountantDashboard() {
     if (filters.bankNames?.length) {
       const names = new Set(filters.bankNames.map((x) => String(x).toLowerCase()));
       result = result.filter((f) =>
-        (f.bankCollections || []).some((b) => names.has(String(b?.name || "").toLowerCase()))
+        (f.bankCollections || []).some((b) =>
+          names.has(String(b?.name || "").toLowerCase())
+        )
       );
     }
 
@@ -265,7 +293,9 @@ export default function AccountantDashboard() {
     if (filters.appNames?.length) {
       const names = new Set(filters.appNames.map((x) => String(x).toLowerCase()));
       result = result.filter((f) =>
-        (f.applications || []).some((a) => names.has(String(a?.name || "").toLowerCase()))
+        (f.applications || []).some((a) =>
+          names.has(String(a?.name || "").toLowerCase())
+        )
       );
     }
 
@@ -297,6 +327,7 @@ export default function AccountantDashboard() {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+
   useEffect(() => {
     setCurrentPage(1);
   }, [tab, JSON.stringify(filters)]);
@@ -378,11 +409,13 @@ export default function AccountantDashboard() {
       ...p,
       applications: [...(p.applications || []), { name: "", amount: 0 }],
     }));
+
   const removeAppLine = (idx) =>
     setEditForm((p) => ({
       ...p,
       applications: (p.applications || []).filter((_, i) => i !== idx),
     }));
+
   const changeAppLine = (idx, key, val) =>
     setEditForm((p) => {
       const arr = [...(p.applications || [])];
@@ -395,11 +428,13 @@ export default function AccountantDashboard() {
       ...p,
       bankCollections: [...(p.bankCollections || []), { name: "", amount: 0 }],
     }));
+
   const removeBankLine = (idx) =>
     setEditForm((p) => ({
       ...p,
       bankCollections: (p.bankCollections || []).filter((_, i) => i !== idx),
     }));
+
   const changeBankLine = (idx, key, val) =>
     setEditForm((p) => {
       const arr = [...(p.bankCollections || [])];
@@ -475,19 +510,23 @@ export default function AccountantDashboard() {
   return (
     <div className="brand-app min-h-screen">
       <BrandPageStyle />
+      <AccountantResponsiveStyle />
       <Toaster position="top-center" toastOptions={{ duration: 2600 }} />
 
       {/* Navbar */}
       <header className="sticky top-0 z-40 backdrop-blur brand-shell border-b border-white/60 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="brand-logo-badge" />
             <div>
               <p className="text-xs text-gray-500">لوحة المحاسب</p>
-              <h1 className="text-lg font-bold tracking-tight">مراجعة تقارير الفروع</h1>
+              <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
+                مراجعة تقارير الفروع
+              </h1>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <span className="hidden md:inline text-sm text-gray-600">
               مرحباً، <b>{meName}</b>
             </span>
@@ -496,33 +535,34 @@ export default function AccountantDashboard() {
                 localStorage.removeItem("token");
                 window.location.href = "/login";
               }}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow"
+              className="inline-flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl brand-primary-btn hover:bg-black transition shadow whitespace-nowrap"
             >
               <LogOut size={16} />
-              <span>تسجيل خروج</span>
+              <span className="hidden sm:inline">تسجيل خروج</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-2 sm:px-4 py-5 sm:py-8">
         {/* Tips */}
-        <div className="mb-4 flex items-center gap-2 text-gray-700">
-          <Info size={16} className="opacity-60" />
+        <div className="mb-4 flex items-start sm:items-center gap-2 text-gray-700">
+          <Info size={16} className="opacity-60 shrink-0 mt-0.5 sm:mt-0" />
           <span className="text-sm">
             كل الكروت والجداول تتأثر بالفلاتر وبالتاب الحالي. تقدر تختار فروع متعددة + فلترة بطرق البنك/التطبيقات.
           </span>
         </div>
 
         {/* Tabs */}
-        <nav className="flex flex-wrap gap-2 mb-6">
+        <nav className="flex gap-2 mb-6 overflow-x-auto brand-scroll pb-2 flex-nowrap">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-2 rounded-xl border text-sm font-medium transition flex items-center gap-2
-                ${tab === t.key ? `bg-${t.color}-600 text-white` : "bg-white hover:bg-slate-100/80 text-gray-700"}`}
+              className={`shrink-0 px-4 py-2 rounded-xl border text-sm font-medium transition flex items-center gap-2 whitespace-nowrap ${
+                tab === t.key ? tabActiveClasses[t.key] : "bg-white hover:bg-slate-100/80 text-gray-700"
+              }`}
             >
               {t.icon}
               {t.label}
@@ -531,7 +571,7 @@ export default function AccountantDashboard() {
         </nav>
 
         {/* Summary Cards */}
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
           <StatCard title="عدد التقارير" value={filteredForms.length} tint="from-gray-500 to-gray-700" />
           <StatCard title="نقدي" value={currency(totals.cash)} tint="from-sky-400 to-yellow-500" />
           <StatCard title="تطبيقات" value={currency(totals.apps)} tint="from-sky-400 to-blue-500" />
@@ -539,14 +579,15 @@ export default function AccountantDashboard() {
           <StatCard title="إجمالي المبيعات" value={currency(totals.salesOnly)} tint="from-emerald-500 to-green-600" />
         </section>
 
-        {/* Filters (sticky card with horizontal scroll) */}
-        <section className="brand-card p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
+        {/* Filters */}
+        <section className="brand-card p-3 sm:p-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <div className="flex items-center gap-2 text-gray-600">
               <Filter size={16} />
               <b>فلاتر البحث</b>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => {
                   setFilters({
@@ -562,6 +603,7 @@ export default function AccountantDashboard() {
               >
                 <RotateCcw size={14} /> تصفير الفلاتر
               </button>
+
               <button
                 onClick={() => fetchForms()}
                 className="text-xs px-2 py-1 rounded-lg border hover:bg-slate-50/80 inline-flex items-center gap-1"
@@ -572,10 +614,10 @@ export default function AccountantDashboard() {
             </div>
           </div>
 
-          <div className="overflow-x-auto brand-table-wrap brand-scroll">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 min-w-[800px]">
+          <div className="w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
               {/* q search */}
-              <div className="md:col-span-3 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
+              <div className="lg:col-span-3 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white">
                 <Search size={16} className="text-gray-400" />
                 <input
                   value={filters.q}
@@ -586,7 +628,7 @@ export default function AccountantDashboard() {
               </div>
 
               {/* multi-branch select */}
-              <div className="md:col-span-3">
+              <div className="lg:col-span-3">
                 <MultiBranchSelect
                   branches={branches}
                   value={filters.branchIds}
@@ -595,7 +637,7 @@ export default function AccountantDashboard() {
               </div>
 
               {/* bank methods multi-select */}
-              <div className="md:col-span-3">
+              <div className="lg:col-span-3">
                 <SimpleMultiSelect
                   label="طرق البنك"
                   options={bankTemplates}
@@ -606,7 +648,7 @@ export default function AccountantDashboard() {
               </div>
 
               {/* app methods multi-select */}
-              <div className="md:col-span-3">
+              <div className="lg:col-span-3">
                 <SimpleMultiSelect
                   label="طرق التطبيقات"
                   options={appTemplates}
@@ -616,7 +658,7 @@ export default function AccountantDashboard() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="lg:col-span-2">
                 <input
                   type="date"
                   value={filters.startDate}
@@ -624,7 +666,8 @@ export default function AccountantDashboard() {
                   className="border rounded-xl px-3 py-2 bg-white text-sm w-full"
                 />
               </div>
-              <div className="md:col-span-2">
+
+              <div className="lg:col-span-2">
                 <input
                   type="date"
                   value={filters.endDate}
@@ -634,10 +677,10 @@ export default function AccountantDashboard() {
               </div>
 
               {/* quick actions */}
-              <div className="md:col-span-2 flex items-center justify-end gap-2">
+              <div className="sm:col-span-2 lg:col-span-2 flex items-center justify-end gap-2">
                 <button
                   onClick={fetchForms}
-                  className="brand-primary-btn px-4 py-2 rounded-xl hover:opacity-95 transition"
+                  className="brand-primary-btn px-4 py-2 rounded-xl hover:opacity-95 transition w-full sm:w-auto"
                 >
                   تحديث
                 </button>
@@ -649,225 +692,233 @@ export default function AccountantDashboard() {
 
           {/* Selected tags */}
           <div className="mt-3 flex flex-wrap gap-2">
-            <TagList label="فروع" values={filters.branchIds.map(id => branches.find(b => b._id === id)?.name).filter(Boolean)} />
+            <TagList
+              label="فروع"
+              values={filters.branchIds
+                .map((id) => branches.find((b) => b._id === id)?.name)
+                .filter(Boolean)}
+            />
             <TagList label="بنك" values={filters.bankNames} />
             <TagList label="تطبيقات" values={filters.appNames} />
           </div>
         </section>
 
         {/* Table */}
-<section className="brand-card p-4">
-  <div className="overflow-x-auto brand-table-wrap brand-scroll">
-    <table className="min-w-full text-sm border rounded-xl overflow-hidden">
-      <thead className="bg-slate-100/80">
-        <tr className="text-center">
-          <th className="p-2 border">رقم التقرير</th>
-          <th className="p-2 border">التاريخ</th>
-          <th className="p-2 border">الفرع</th>
-          <th className="p-2 border">المستخدم</th>
-          <th className="p-2 border">نقدي</th>
-          <th className="p-2 border">تطبيقات</th>
-          <th className="p-2 border">بنك</th>
-          <th className="p-2 border">المشتريات</th>
-          <th className="p-2 border">إجمالي البيع</th>
-          <th className="p-2 border">اعتماد المحاسب</th>
-          <th className="p-2 border">حالة المدير</th>
-          <th className="p-2 border">ملاحظات المدير</th>
-          <th className="p-2 border">إجراءات</th>
-        </tr>
-      </thead>
+        <section className="brand-card p-2 sm:p-4 overflow-hidden">
+          <div className="sm:hidden text-xs text-gray-500 mb-2">
+            اسحب الجدول يمين/يسار لعرض باقي الأعمدة
+          </div>
 
-      <tbody>
-        {loading ? (
-          <tr>
-            <td colSpan={13} className="p-6 text-center text-gray-500 italic">
-              جاري تحميل البيانات...
-            </td>
-          </tr>
-        ) : paginatedForms.length ? (
-          paginatedForms.map((f) => {
-            const accountantStatus = f.accountantRelease?.status || "pending";
-            const mgrStatus = f.branchManagerRelease?.status;
+          <div className="w-full max-w-full overflow-x-auto brand-table-wrap brand-scroll touch-pan-x">
+            <table className="brand-data-table min-w-[1180px] w-full text-xs sm:text-sm border rounded-xl overflow-hidden">
+              <thead className="bg-slate-100/80">
+                <tr className="text-center">
+                  <th className="p-2 border">رقم التقرير</th>
+                  <th className="p-2 border">التاريخ</th>
+                  <th className="p-2 border">الفرع</th>
+                  <th className="p-2 border">المستخدم</th>
+                  <th className="p-2 border">نقدي</th>
+                  <th className="p-2 border">تطبيقات</th>
+                  <th className="p-2 border">بنك</th>
+                  <th className="p-2 border">المشتريات</th>
+                  <th className="p-2 border">إجمالي البيع</th>
+                  <th className="p-2 border">اعتماد المحاسب</th>
+                  <th className="p-2 border">حالة المدير</th>
+                  <th className="p-2 border">ملاحظات المدير</th>
+                  <th className="p-2 border">إجراءات</th>
+                </tr>
+              </thead>
 
-            const rowBg =
-              accountantStatus === "rejected" || mgrStatus === "rejected"
-                ? "bg-red-50"
-                : accountantStatus === "released"
-                ? "bg-green-50"
-                : "bg-yellow-50";
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={13} className="p-6 text-center text-gray-500 italic">
+                      جاري تحميل البيانات...
+                    </td>
+                  </tr>
+                ) : paginatedForms.length ? (
+                  paginatedForms.map((f) => {
+                    const accountantStatus = f.accountantRelease?.status || "pending";
+                    const mgrStatus = f.branchManagerRelease?.status;
 
-            const showActions = accountantStatus === "pending";
+                    const rowBg =
+                      accountantStatus === "rejected" || mgrStatus === "rejected"
+                        ? "bg-red-50"
+                        : accountantStatus === "released"
+                        ? "bg-green-50"
+                        : "bg-yellow-50";
 
-            return (
-              <tr key={f._id} className={`text-center ${rowBg}`}>
+                    const showActions = accountantStatus === "pending";
 
-                {/* 🔢 رقم التقرير */}
-                <td className="p-2 border font-mono text-xs font-semibold text-indigo-700">
-                  {f.serialNumber || "-"}
-                </td>
+                    return (
+                      <tr key={f._id} className={`text-center ${rowBg}`}>
+                        {/* 🔢 رقم التقرير */}
+                        <td className="p-2 border font-mono text-xs font-semibold text-indigo-700">
+                          {f.serialNumber || "-"}
+                        </td>
 
-                {/* 📅 التاريخ + وقت الإنشاء */}
-<td className="p-2 border">
-  <div className="flex flex-col items-center leading-tight">
-    {/* 📅 تاريخ التقرير */}
-    <span className="font-medium">
-      {formatDateOnly(f.formDate)}
-    </span>
+                        {/* 📅 التاريخ + وقت الإنشاء */}
+                        <td className="p-2 border">
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="font-medium">{formatDateOnly(f.formDate)}</span>
 
-    {/* ⏰ وقت الإنشاء فقط */}
-    <span className="text-[11px] text-gray-500">
-      {f.createdAt
-        ? new Date(f.createdAt).toLocaleTimeString("ar-EG", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "-"}
-    </span>
-  </div>
-</td>
+                            <span className="text-[11px] text-gray-500">
+                              {f.createdAt
+                                ? new Date(f.createdAt).toLocaleTimeString("ar-EG", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "-"}
+                            </span>
+                          </div>
+                        </td>
 
+                        {/* 🏢 الفرع */}
+                        <td className="p-2 border">{f.branch?.name || "-"}</td>
 
-                {/* 🏢 الفرع */}
-                <td className="p-2 border">{f.branch?.name || "-"}</td>
+                        {/* 👤 المستخدم */}
+                        <td className="p-2 border">{f.user?.name || "-"}</td>
 
-                {/* 👤 المستخدم */}
-                <td className="p-2 border">{f.user?.name || "-"}</td>
+                        {/* 💰 أرقام */}
+                        <td className="p-2 border text-right">{currency(f.cashCollection)}</td>
+                        <td className="p-2 border text-right">{currency(appsWithFallback(f))}</td>
+                        <td className="p-2 border text-right">{currency(bankWithFallback(f))}</td>
+                        <td className="p-2 border text-right">{currency(f.purchases)}</td>
 
-                {/* 💰 أرقام */}
-                <td className="p-2 border text-right">{currency(f.cashCollection)}</td>
-                <td className="p-2 border text-right">{currency(appsWithFallback(f))}</td>
-                <td className="p-2 border text-right">{currency(bankWithFallback(f))}</td>
-                <td className="p-2 border text-right">{currency(f.purchases)}</td>
+                        {/* 📊 إجمالي */}
+                        <td className="p-2 border font-bold text-right">
+                          {currency(salesOnlyTotal(f))}
+                        </td>
 
-                {/* 📊 إجمالي */}
-                <td className="p-2 border font-bold text-right">
-                  {currency(salesOnlyTotal(f))}
-                </td>
+                        {/* ✅ اعتماد المحاسب */}
+                        <td className="p-2 border">
+                          {accountantStatus === "released" ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-blue-800">
+                                معتمد
+                              </span>
+                              <span className="text-[11px] text-gray-500">
+                                {f.accountantRelease?.at
+                                  ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "-"}
+                              </span>
+                            </div>
+                          ) : accountantStatus === "rejected" ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-blue-800">
+                                مرفوض
+                              </span>
+                              <span className="text-[11px] text-gray-500">
+                                {f.accountantRelease?.at
+                                  ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "-"}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-blue-800">
+                              قيد المراجعة
+                            </span>
+                          )}
+                        </td>
 
-                {/* ✅ اعتماد المحاسب */}
-<td className="p-2 border">
-  {accountantStatus === "released" ? (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-blue-800">
-        معتمد
-      </span>
-      <span className="text-[11px] text-gray-500">
-        {f.accountantRelease?.at
-          ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "-"}
-      </span>
-    </div>
-  ) : accountantStatus === "rejected" ? (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-blue-800">
-        مرفوض
-      </span>
-      <span className="text-[11px] text-gray-500">
-        {f.accountantRelease?.at
-          ? new Date(f.accountantRelease.at).toLocaleTimeString("ar-EG", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "-"}
-      </span>
-    </div>
-  ) : (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-blue-800">
-      قيد المراجعة
-    </span>
-  )}
-</td>
+                        {/* 👔 اعتماد المدير */}
+                        <td className="p-2 border">
+                          {mgrStatus === "released" ? (
+                            <span className="text-blue-700 font-medium">تم الاعتماد</span>
+                          ) : mgrStatus === "rejected" ? (
+                            <span className="text-blue-700 font-medium">مرفوض</span>
+                          ) : (
+                            <span className="text-blue-700 font-medium">قيد المراجعة</span>
+                          )}
+                        </td>
 
+                        {/* 📝 ملاحظات المدير */}
+                        <td className="p-2 border whitespace-pre-wrap text-left text-gray-700 max-w-[220px]">
+                          {f.branchManagerRelease?.note || "-"}
+                        </td>
 
-                {/* 👔 اعتماد المدير */}
-                <td className="p-2 border">
-                  {mgrStatus === "released" ? (
-                    <span className="text-blue-700 font-medium">تم الاعتماد</span>
-                  ) : mgrStatus === "rejected" ? (
-                    <span className="text-blue-700 font-medium">مرفوض</span>
-                  ) : (
-                    <span className="text-blue-700 font-medium">قيد المراجعة</span>
-                  )}
-                </td>
+                        {/* ⚙️ إجراءات */}
+                        <td className="p-2 border space-y-1 min-w-[95px] whitespace-nowrap">
+                          <button
+                            onClick={() => openDetails(f)}
+                            className="w-full px-2 py-1 brand-muted-btn text-xs whitespace-nowrap"
+                          >
+                            تفاصيل
+                          </button>
 
-                {/* 📝 ملاحظات المدير */}
-                <td className="p-2 border whitespace-pre-wrap text-left text-gray-700 max-w-[220px]">
-                  {f.branchManagerRelease?.note || "-"}
-                </td>
+                          {showActions && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setActionType("approve");
+                                  setActionTargetId(f._id);
+                                  setActionNote("");
+                                }}
+                                className="w-full px-2 py-1 brand-success-btn rounded hover:bg-blue-800 text-xs whitespace-nowrap"
+                              >
+                                موافقة
+                              </button>
 
-                {/* ⚙️ إجراءات */}
-                <td className="p-2 border space-y-1">
-                  <button
-                    onClick={() => openDetails(f)}
-                    className="w-full px-2 py-1 brand-muted-btn text-xs"
-                  >
-                    تفاصيل
-                  </button>
-
-                  {showActions && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setActionType("approve");
-                          setActionTargetId(f._id);
-                          setActionNote("");
-                        }}
-                        className="w-full px-2 py-1 brand-success-btn rounded hover:bg-blue-800 text-xs"
-                      >
-                        موافقة
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActionType("reject");
-                          setActionTargetId(f._id);
-                          setActionNote("");
-                        }}
-                        className="w-full px-2 py-1 brand-danger-btn rounded hover:bg-blue-800 text-xs"
-                      >
-                        رفض
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            );
-          })
-        ) : (
-          <tr>
-            <td colSpan={13} className="p-6 text-center text-gray-500 italic">
-              لا توجد نتائج مطابقة
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</section>
-
+                              <button
+                                onClick={() => {
+                                  setActionType("reject");
+                                  setActionTargetId(f._id);
+                                  setActionNote("");
+                                }}
+                                className="w-full px-2 py-1 brand-danger-btn rounded hover:bg-blue-800 text-xs whitespace-nowrap"
+                              >
+                                رفض
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={13} className="p-6 text-center text-gray-500 italic">
+                      لا توجد نتائج مطابقة
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-4">
+          <div className="flex justify-center items-center gap-2 mt-4 flex-wrap">
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => p - 1)}
               className={`px-3 py-1 rounded-lg border ${
-                currentPage === 1 ? "bg-slate-100/80 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-slate-100/80"
+                currentPage === 1
+                  ? "bg-slate-100/80 text-gray-400 cursor-not-allowed"
+                  : "bg-white hover:bg-slate-100/80"
               }`}
             >
               السابق
             </button>
+
             <span className="text-sm text-gray-600">
               صفحة {currentPage} من {totalPages}
             </span>
+
             <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
               className={`px-3 py-1 rounded-lg border ${
-                currentPage === totalPages ? "bg-slate-100/80 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-slate-100/80"
+                currentPage === totalPages
+                  ? "bg-slate-100/80 text-gray-400 cursor-not-allowed"
+                  : "bg-white hover:bg-slate-100/80"
               }`}
             >
               التالي
@@ -878,71 +929,44 @@ export default function AccountantDashboard() {
 
       {/* ===== Modal: Details / Edit + Resubmit ===== */}
       {selectedForm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3">
-          <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-2 sm:p-3 overflow-y-auto">
+          <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl max-h-[calc(100vh-16px)] overflow-hidden">
             {/* Header */}
-<div className="sticky top-0 bg-white border-b rounded-t-2xl p-4 flex justify-between items-center">
-  <div className="space-y-1">
-    {/* 🧾 سيريال التقرير */}
-    <h3 className="text-base font-bold flex items-center gap-2">
-      تقرير رقم
-      <span className="text-indigo-600 font-mono">
-        {selectedForm.serialNumber || "-"}
-      </span>
-    </h3>
+            <div className="sticky top-0 z-10 bg-white border-b rounded-t-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <div className="space-y-1">
+                {/* 🧾 سيريال التقرير */}
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  تقرير رقم
+                  <span className="text-indigo-600 font-mono">
+                    {selectedForm.serialNumber || "-"}
+                  </span>
+                </h3>
 
-    {/* 🏢 الفرع + تاريخ التقرير */}
-    <div className="text-sm text-gray-700">
-      {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
-    </div>
+                {/* 🏢 الفرع + تاريخ التقرير */}
+                <div className="text-sm text-gray-700">
+                  {selectedForm.branch?.name || "-"} — {formatDateOnly(selectedForm.formDate)}
+                </div>
+              </div>
 
-    {/* ⏰ توقيتات */}
-    {/*<div className="text-xs text-gray-500 space-y-0.5">
-      <div>
-        تم الإنشاء:
-        <span className="ml-1 font-medium">
-          {selectedForm.createdAt
-            ? new Date(selectedForm.createdAt).toLocaleTimeString("ar-EG", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "-"}
-        </span>
-      </div>
+              <div className="flex gap-2 w-full sm:w-auto" data-html2canvas-ignore>
+                <button
+                  onClick={handleExportPDF}
+                  className="px-3 py-1.5 rounded-xl brand-primary-btn hover:bg-black text-sm inline-flex items-center justify-center gap-1 flex-1 sm:flex-none whitespace-nowrap"
+                >
+                  تصدير PDF
+                </button>
 
-      {selectedForm.accountantRelease?.at && (
-        <div>
-          اعتماد المحاسب:
-          <span className="ml-1 font-medium text-blue-800">
-            {new Date(selectedForm.accountantRelease.at).toLocaleTimeString(
-              "ar-EG",
-              { hour: "2-digit", minute: "2-digit" }
-            )}
-          </span>
-        </div>
-      )}
-    </div>*/}
-  </div>
-
-  <div className="flex gap-2" data-html2canvas-ignore>
-    <button
-      onClick={handleExportPDF}
-      className="px-3 py-1.5 rounded-xl brand-primary-btn hover:bg-black text-sm inline-flex items-center gap-1"
-    >
-      تصدير PDF
-    </button>
-    <button
-      onClick={closeDetails}
-      className="border px-3 py-1.5 rounded-xl hover:bg-slate-50/80 text-sm inline-flex items-center gap-1"
-    >
-      إغلاق
-    </button>
-  </div>
-</div>
-
+                <button
+                  onClick={closeDetails}
+                  className="border px-3 py-1.5 rounded-xl hover:bg-slate-50/80 text-sm inline-flex items-center justify-center gap-1 flex-1 sm:flex-none whitespace-nowrap"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
 
             {/* Body */}
-            <div ref={modalRef} className="max-h-[85vh] overflow-y-auto">
+            <div ref={modalRef} className="max-h-[calc(100vh-120px)] overflow-y-auto">
               <div className="p-4 sm:p-6 space-y-4">
                 {/* Top metrics */}
                 <div className="grid md:grid-cols-4 gap-3">
@@ -956,19 +980,29 @@ export default function AccountantDashboard() {
                 <div className="grid md:grid-cols-2 gap-3">
                   <div className="p-3 border rounded-xl bg-white/70">
                     <div className="text-xs text-gray-500 mb-1">ملاحظات مدير الفرع</div>
-                    <div className="text-sm whitespace-pre-wrap">{selectedForm.branchManagerRelease?.note || "-"}</div>
+                    <div className="text-sm whitespace-pre-wrap">
+                      {selectedForm.branchManagerRelease?.note || "-"}
+                    </div>
                     <div className="mt-2 text-xs">
-                      <span className={`px-2 py-0.5 rounded-full border
-                        ${selectedForm.branchManagerRelease?.status === "rejected" ? "text-blue-800 border-rose-300 bg-sky-50" :
-                          selectedForm.branchManagerRelease?.status === "released" ? "text-blue-800 border-emerald-300 bg-sky-50" :
-                            "text-blue-800 border-amber-300 bg-sky-50"}`}>
+                      <span
+                        className={`px-2 py-0.5 rounded-full border ${
+                          selectedForm.branchManagerRelease?.status === "rejected"
+                            ? "text-blue-800 border-rose-300 bg-sky-50"
+                            : selectedForm.branchManagerRelease?.status === "released"
+                            ? "text-blue-800 border-emerald-300 bg-sky-50"
+                            : "text-blue-800 border-amber-300 bg-sky-50"
+                        }`}
+                      >
                         حالة المدير: {selectedForm.branchManagerRelease?.status || "pending"}
                       </span>
                     </div>
                   </div>
+
                   <div className="p-3 border rounded-xl bg-white/70">
                     <div className="text-xs text-gray-500 mb-1">ملاحظات المحاسب</div>
-                    <div className="text-sm whitespace-pre-wrap">{selectedForm.accountantRelease?.note || "-"}</div>
+                    <div className="text-sm whitespace-pre-wrap">
+                      {selectedForm.accountantRelease?.note || "-"}
+                    </div>
                     {selectedForm.accountantRelease?.returnReason && (
                       <div className="mt-2 p-2 text-xs rounded-lg bg-yellow-50 border border-yellow-200">
                         <b>سبب الإرجاع:</b> {selectedForm.accountantRelease.returnReason}
@@ -993,8 +1027,13 @@ export default function AccountantDashboard() {
                     ) : (
                       <div className="text-sm text-gray-500">لا يوجد</div>
                     )}
+
                     <div className="text-right mt-2 font-bold text-blue-800">
-                      الإجمالي: {currency(sumAppsArr(selectedForm) || Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0))}
+                      الإجمالي:{" "}
+                      {currency(
+                        sumAppsArr(selectedForm) ||
+                          Number(selectedForm?.appsTotal || selectedForm?.appsCollection || 0)
+                      )}
                     </div>
                   </div>
 
@@ -1012,8 +1051,10 @@ export default function AccountantDashboard() {
                     ) : (
                       <div className="text-sm text-gray-500">لا يوجد</div>
                     )}
+
                     <div className="text-right mt-2 font-bold text-blue-700">
-                      الإجمالي: {currency(sumBankArr(selectedForm) || Number(selectedForm?.bankTotal || 0))}
+                      الإجمالي:{" "}
+                      {currency(sumBankArr(selectedForm) || Number(selectedForm?.bankTotal || 0))}
                     </div>
                   </div>
                 </div>
@@ -1044,66 +1085,67 @@ export default function AccountantDashboard() {
                   </div>
                 </div>
 
-{/* Attachments */}
-<div className="mt-1 border rounded-xl p-3 bg-white/70">
-  <div className="font-semibold mb-2">📎 المرفقات</div>
-  {attLoading ? (
-    <div className="text-sm text-gray-500">جاري التحميل...</div>
-  ) : attachments.length ? (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {attachments.map((att) => {
-        const isImg = att.fileUrl?.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i);
-        const href = att.fileUrl?.startsWith("http")
-          ? att.fileUrl
-          : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl || ""}`;
-        return (
-          <a
-            key={att._id}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block border rounded-xl overflow-hidden hover:shadow-md transition"
-          >
-            {isImg ? (
-              <img
-                src={href}
-                alt={att.type || "attachment"}
-                className="w-full h-32 object-cover"
-              />
-            ) : (
-              <div className="p-3 text-center text-sm text-gray-600">
-                {att.fileUrl?.split("/").pop()}
-              </div>
-            )}
-            <div className="text-xs text-gray-500 text-center p-1 bg-slate-50/80 border-t">
-              {att.type?.toUpperCase() || "ملف"}
-            </div>
-          </a>
-        );
-      })}
-    </div>
-  ) : (
-    <div className="text-sm text-gray-500">لا توجد مرفقات</div>
-  )}
-</div>
-{/* 🕒 Timeline */}
-<div className="px-4 sm:px-6 mt-4">
-  <ReportTimeline form={selectedForm} />
-</div>
+                {/* Attachments */}
+                <div className="mt-1 border rounded-xl p-3 bg-white/70">
+                  <div className="font-semibold mb-2">📎 المرفقات</div>
+                  {attLoading ? (
+                    <div className="text-sm text-gray-500">جاري التحميل...</div>
+                  ) : attachments.length ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {attachments.map((att) => {
+                        const isImg = att.fileUrl?.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i);
+                        const href = att.fileUrl?.startsWith("http")
+                          ? att.fileUrl
+                          : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl || ""}`;
 
+                        return (
+                          <a
+                            key={att._id}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block border rounded-xl overflow-hidden hover:shadow-md transition"
+                          >
+                            {isImg ? (
+                              <img
+                                src={href}
+                                alt={att.type || "attachment"}
+                                className="w-full h-32 object-cover"
+                              />
+                            ) : (
+                              <div className="p-3 text-center text-sm text-gray-600">
+                                {att.fileUrl?.split("/").pop()}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500 text-center p-1 bg-slate-50/80 border-t">
+                              {att.type?.toUpperCase() || "ملف"}
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">لا توجد مرفقات</div>
+                  )}
+                </div>
 
+                {/* 🕒 Timeline */}
+                <div className="px-4 sm:px-6 mt-4">
+                  <ReportTimeline form={selectedForm} />
+                </div>
 
                 {/* Edit/Resubmit actions (only if rejected by manager) */}
                 {canEdit && (
                   <div className="border rounded-xl p-3 bg-sky-50/70 mt-2" data-html2canvas-ignore>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="text-sm text-amber-800 font-semibold flex items-center gap-2">
                         <Edit3 size={16} />
                         تم رفض التقرير من المدير — يمكنك تعديله وإعادة إرساله
                       </div>
+
                       <button
                         onClick={() => setEditMode((v) => !v)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border hover:bg-white text-sm"
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl border hover:bg-white text-sm whitespace-nowrap"
                       >
                         <ChevronDown size={14} />
                         {editMode ? "إغلاق وضع التعديل" : "فتح وضع التعديل"}
@@ -1143,8 +1185,8 @@ export default function AccountantDashboard() {
                                   />
                                   <input
                                     type="number"
-                                      step="0.01"
-  inputMode="decimal"
+                                    step="0.01"
+                                    inputMode="decimal"
                                     value={a.amount}
                                     onChange={(e) => changeAppLine(idx, "amount", e.target.value)}
                                     className="border rounded-lg px-2 py-1 w-32 text-right"
@@ -1160,12 +1202,22 @@ export default function AccountantDashboard() {
                                 </li>
                               ))}
                             </ul>
+
                             <div className="flex justify-between items-center mt-3" data-html2canvas-ignore>
-                              <button onClick={addAppLine} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg brand-success-btn text-xs">
+                              <button
+                                onClick={addAppLine}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg brand-success-btn text-xs"
+                              >
                                 <Plus size={14} /> إضافة سطر
                               </button>
                               <div className="font-bold text-blue-800 text-sm">
-                                الإجمالي: {currency((editForm?.applications || []).reduce((s, x) => s + Number(x.amount || 0), 0))}
+                                الإجمالي:{" "}
+                                {currency(
+                                  (editForm?.applications || []).reduce(
+                                    (s, x) => s + Number(x.amount || 0),
+                                    0
+                                  )
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1183,8 +1235,8 @@ export default function AccountantDashboard() {
                                   />
                                   <input
                                     type="number"
-                                      step="0.01"
-  inputMode="decimal"
+                                    step="0.01"
+                                    inputMode="decimal"
                                     value={b.amount}
                                     onChange={(e) => changeBankLine(idx, "amount", e.target.value)}
                                     className="border rounded-lg px-2 py-1 w-32 text-right"
@@ -1200,12 +1252,22 @@ export default function AccountantDashboard() {
                                 </li>
                               ))}
                             </ul>
+
                             <div className="flex justify-between items-center mt-3" data-html2canvas-ignore>
-                              <button onClick={addBankLine} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 text-white text-xs">
+                              <button
+                                onClick={addBankLine}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 text-white text-xs"
+                              >
                                 <Plus size={14} /> إضافة سطر
                               </button>
                               <div className="font-bold text-blue-700 text-sm">
-                                الإجمالي: {currency((editForm?.bankCollections || []).reduce((s, x) => s + Number(x.amount || 0), 0))}
+                                الإجمالي:{" "}
+                                {currency(
+                                  (editForm?.bankCollections || []).reduce(
+                                    (s, x) => s + Number(x.amount || 0),
+                                    0
+                                  )
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1219,18 +1281,30 @@ export default function AccountantDashboard() {
                               <LabeledValue
                                 label="إجمالي البيع (بدون مشتريات)"
                                 value={currency(
-                                  (Number(editForm.cashCollection || 0)
-                                    + (editForm.applications || []).reduce((s, x) => s + Number(x.amount || 0), 0)
-                                    + (editForm.bankCollections || []).reduce((s, x) => s + Number(x.amount || 0), 0))
+                                  Number(editForm.cashCollection || 0) +
+                                    (editForm.applications || []).reduce(
+                                      (s, x) => s + Number(x.amount || 0),
+                                      0
+                                    ) +
+                                    (editForm.bankCollections || []).reduce(
+                                      (s, x) => s + Number(x.amount || 0),
+                                      0
+                                    )
                                 )}
                               />
                               <LabeledValue
                                 label="إجمالي + مشتريات"
                                 value={currency(
-                                  (Number(editForm.cashCollection || 0)
-                                    + (editForm.applications || []).reduce((s, x) => s + Number(x.amount || 0), 0)
-                                    + (editForm.bankCollections || []).reduce((s, x) => s + Number(x.amount || 0), 0)
-                                    + Number(editForm.purchases || 0))
+                                  Number(editForm.cashCollection || 0) +
+                                    (editForm.applications || []).reduce(
+                                      (s, x) => s + Number(x.amount || 0),
+                                      0
+                                    ) +
+                                    (editForm.bankCollections || []).reduce(
+                                      (s, x) => s + Number(x.amount || 0),
+                                      0
+                                    ) +
+                                    Number(editForm.purchases || 0)
                                 )}
                               />
                               <LabeledValue
@@ -1249,21 +1323,25 @@ export default function AccountantDashboard() {
                           </div>
 
                           <div className="border rounded-xl p-3 bg-white/70">
-                            <div className="text-gray-500 mb-1">ملاحظة للمُراجع (إجباري لإعادة الإرسال)</div>
+                            <div className="text-gray-500 mb-1">
+                              ملاحظة للمُراجع (إجباري لإعادة الإرسال)
+                            </div>
                             <textarea
                               value={resubmitNote}
                               onChange={(e) => setResubmitNote(e.target.value)}
                               placeholder="مثلاً: تم تصحيح مبلغ التحصيل البنكي طبقًا للمرفق.."
                               className="w-full border rounded-xl p-3 text-sm min-h-[90px] focus:ring-2 focus:ring-rose-300 outline-none"
                             />
+
                             <div className="flex flex-col md:items-end gap-2 mt-2" data-html2canvas-ignore>
                               <button
                                 onClick={resubmit}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800"
                               >
                                 <Save size={16} />
                                 إرسال مجددًا للمدير
                               </button>
+
                               <button
                                 onClick={() => {
                                   setEditForm({
@@ -1287,7 +1365,7 @@ export default function AccountantDashboard() {
                                   });
                                   setResubmitNote("");
                                 }}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border hover:bg-white"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border hover:bg-white"
                               >
                                 <RotateCcw size={16} />
                                 تراجع عن التعديلات
@@ -1302,24 +1380,25 @@ export default function AccountantDashboard() {
 
                 {/* ✅ أزرار الموافقة/الرفض في أسفل المودال — فقط لو حالة المحاسب pending */}
                 {selectedForm.accountantRelease?.status === "pending" && (
-                  <div className="flex justify-end gap-3 mt-4" data-html2canvas-ignore>
+                  <div className="flex flex-col sm:flex-row sm:justify-end gap-3 mt-4" data-html2canvas-ignore>
                     <button
                       onClick={() => {
                         setActionType("approve");
                         setActionTargetId(selectedForm._id);
                         setActionNote("");
                       }}
-                      className="px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800"
+                      className="px-4 py-2 rounded-xl brand-success-btn hover:bg-blue-800 whitespace-nowrap"
                     >
                       موافقة
                     </button>
+
                     <button
                       onClick={() => {
                         setActionType("reject");
                         setActionTargetId(selectedForm._id);
                         setActionNote("");
                       }}
-                      className="px-4 py-2 rounded-xl brand-danger-btn hover:bg-blue-800"
+                      className="px-4 py-2 rounded-xl brand-danger-btn hover:bg-blue-800 whitespace-nowrap"
                     >
                       رفض
                     </button>
@@ -1332,17 +1411,20 @@ export default function AccountantDashboard() {
       )}
 
       {/* ===== Action Modal: Approve / Reject with Textarea ===== */}
-{actionType && (
-  <div className="fixed inset-0 z-[3000000000] bg-black/50 flex items-center justify-center p-3">
-
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border">
+      {actionType && (
+        <div className="fixed inset-0 z-[3000000000] bg-black/50 flex items-center justify-center p-3">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border max-h-[calc(100vh-24px)] overflow-y-auto">
             {/* Header */}
             <div className="px-4 py-3 border-b flex items-center justify-between">
               <h4 className="font-bold text-base">
                 {actionType === "approve" ? "تأكيد الموافقة" : "تأكيد الرفض"}
               </h4>
               <button
-                onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
+                onClick={() => {
+                  setActionType(null);
+                  setActionNote("");
+                  setActionTargetId(null);
+                }}
                 className="p-1 rounded-lg hover:bg-slate-100/80"
                 title="إغلاق"
               >
@@ -1357,25 +1439,36 @@ export default function AccountantDashboard() {
                   ? "يمكنك كتابة ملاحظة للموافقة (اختياري)."
                   : "من فضلك اكتب سبب الرفض (إجباري)."}
               </div>
+
               <textarea
                 value={actionNote}
                 onChange={(e) => setActionNote(e.target.value)}
-                placeholder={actionType === "approve" ? "أضف ملاحظة (اختياري)..." : "سبب الرفض (إجباري)..."}
+                placeholder={
+                  actionType === "approve"
+                    ? "أضف ملاحظة (اختياري)..."
+                    : "سبب الرفض (إجباري)..."
+                }
                 className="w-full border rounded-xl p-3 text-sm min-h-[110px] focus:ring-2 focus:ring-indigo-300 outline-none"
               />
+
               {actionType === "reject" && !String(actionNote || "").trim() && (
                 <div className="text-xs text-blue-700">سبب الرفض مطلوب.</div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
+            <div className="px-4 py-3 border-t flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
               <button
-                onClick={() => { setActionType(null); setActionNote(""); setActionTargetId(null); }}
-                className="px-3 py-2 rounded-xl border hover:bg-slate-50/80 text-sm"
+                onClick={() => {
+                  setActionType(null);
+                  setActionNote("");
+                  setActionTargetId(null);
+                }}
+                className="px-3 py-2 rounded-xl border hover:bg-slate-50/80 text-sm w-full sm:w-auto"
               >
                 إلغاء
               </button>
+
               {actionType === "approve" ? (
                 <button
                   onClick={async () => {
@@ -1386,7 +1479,7 @@ export default function AccountantDashboard() {
                     setActionNote("");
                     setActionTargetId(null);
                   }}
-                  className="px-3 py-2 rounded-xl brand-success-btn hover:bg-blue-800 text-sm"
+                  className="px-3 py-2 rounded-xl brand-success-btn hover:bg-blue-800 text-sm w-full sm:w-auto"
                 >
                   تأكيد الموافقة
                 </button>
@@ -1401,7 +1494,7 @@ export default function AccountantDashboard() {
                     setActionNote("");
                     setActionTargetId(null);
                   }}
-                  className={`px-3 py-2 rounded-xl text-white text-sm ${
+                  className={`px-3 py-2 rounded-xl text-white text-sm w-full sm:w-auto ${
                     String(actionNote || "").trim()
                       ? "bg-blue-700 hover:bg-blue-800"
                       : "bg-rose-400 cursor-not-allowed"
@@ -1418,16 +1511,52 @@ export default function AccountantDashboard() {
   );
 }
 
+function AccountantResponsiveStyle() {
+  return (
+    <style>{`
+      .brand-scroll {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+
+      .brand-table-wrap {
+        max-width: 100%;
+      }
+
+      .brand-data-table th,
+      .brand-data-table td {
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+
+      .touch-pan-x {
+        touch-action: pan-x;
+      }
+
+      @media (max-width: 640px) {
+        .brand-card {
+          border-radius: 14px;
+        }
+
+        .brand-data-table th,
+        .brand-data-table td {
+          padding: 0.45rem;
+        }
+      }
+    `}</style>
+  );
+}
+
 /* ================= Reusable UI ================= */
 
 function StatCard({ title, value, tint }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 backdrop-blur p-4 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/70 backdrop-blur p-3 sm:p-4 shadow-sm">
       <div className={`absolute -top-10 -left-10 h-28 w-28 rounded-full bg-gradient-to-br ${tint} opacity-20`} />
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500">{title}</p>
-          <h4 className="text-2xl font-extrabold tracking-tight">{value}</h4>
+          <h4 className="text-xl sm:text-2xl font-extrabold tracking-tight">{value}</h4>
         </div>
       </div>
     </div>
@@ -1458,8 +1587,8 @@ function NumberInput({ value, onChange, placeholder = "0" }) {
   return (
     <input
       type="number"
-        step="0.01"
-  inputMode="decimal"
+      step="0.01"
+      inputMode="decimal"
       value={value}
       onChange={(e) => onChange(Number(e.target.value || 0))}
       placeholder={placeholder}
@@ -1470,6 +1599,7 @@ function NumberInput({ value, onChange, placeholder = "0" }) {
 
 function TagList({ label, values }) {
   if (!values?.length) return null;
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-500">{label}:</span>
@@ -1489,12 +1619,14 @@ function TagList({ label, values }) {
 function MultiBranchSelect({ branches, value, onChange }) {
   const [open, setOpen] = useState(false);
   const selectedSet = new Set(value || []);
+
   const toggle = (id) => {
     const next = new Set(selectedSet);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     onChange([...next]);
   };
+
   const clearAll = () => onChange([]);
 
   return (
@@ -1512,13 +1644,16 @@ function MultiBranchSelect({ branches, value, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-lg border p-2">
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-lg border p-2">
           <div className="max-height-56 overflow-auto pr-1 max-h-56">
             {branches.map((b) => {
               const id = b._id;
               const checked = selectedSet.has(id);
               return (
-                <label key={id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer">
+                <label
+                  key={id}
+                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={checked}
@@ -1529,6 +1664,7 @@ function MultiBranchSelect({ branches, value, onChange }) {
                 </label>
               );
             })}
+
             {!branches.length && (
               <div className="text-xs text-gray-500 px-2 py-1">لا توجد فروع</div>
             )}
@@ -1550,7 +1686,7 @@ function MultiBranchSelect({ branches, value, onChange }) {
 
 function SimpleMultiSelect({ label, options, value, onChange, placeholder = "اختر..." }) {
   const [open, setOpen] = useState(false);
-  const selected = new Set((value || []).map(v => String(v).toLowerCase()));
+  const selected = new Set((value || []).map((v) => String(v).toLowerCase()));
 
   const toggle = (name) => {
     const lower = String(name).toLowerCase();
@@ -1559,6 +1695,7 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
     else next.add(lower);
     onChange([...next]);
   };
+
   const clearAll = () => onChange([]);
 
   return (
@@ -1576,14 +1713,18 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-lg border p-2">
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-lg border p-2">
           <div className="max-h-56 overflow-auto pr-1">
             {(options || []).map((opt) => {
               const name = opt?.name || "";
               const lower = name.toLowerCase();
               const checked = selected.has(lower);
+
               return (
-                <label key={opt._id || name} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer">
+                <label
+                  key={opt._id || name}
+                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50/80 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={checked}
@@ -1594,6 +1735,7 @@ function SimpleMultiSelect({ label, options, value, onChange, placeholder = "ا�
                 </label>
               );
             })}
+
             {!options?.length && (
               <div className="text-xs text-gray-500 px-2 py-1">لا توجد عناصر</div>
             )}

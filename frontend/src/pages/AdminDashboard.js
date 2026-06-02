@@ -777,236 +777,357 @@ function AdminReceipts({ api, isAdmin }) {
           ======================== MODAL ========================
           ======================================================= */}
 {activeForm && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="brand-modal w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6">
+  <>
+    <style>{`
+      .clean-admin-modal-body {
+        background: #ffffff;
+      }
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 z-10 border-b">
-        <h3 className="text-lg font-bold">
-          تفاصيل التقرير — {activeForm.branch?.name} — {formatDateOnly(activeForm.formDate)}
-        </h3>
-        <button
-          onClick={() => setActiveForm(null)}
-          className="border px-3 py-1 rounded-xl hover:bg-slate-50/80"
-        >
-          إغلاق
-        </button>
-      </div>
+      .clean-admin-modal-body table {
+        background: #ffffff;
+      }
 
-      {/* SUMMARY */}
-      <h4 className="font-bold text-md mb-3">الملخص</h4>
-      <div className="grid md:grid-cols-3 gap-3 mb-6">
-        <MiniBox label="العهدة" value={currency(activeForm.pettyCash || 0)} />
+      .clean-admin-modal-body th {
+        background: #f1f5f9;
+        color: #0f172a;
+        font-weight: 700;
+      }
 
-        <MiniBox label="المشتريات" value={currency(activeForm.purchases || 0)} />
+      .clean-admin-modal-body td {
+        background: #ffffff;
+        color: #0f172a;
+      }
 
-        <MiniBox label="النقدي" value={currency(activeForm.cashCollection || 0)} />
+      .clean-admin-modal-body input,
+      .clean-admin-modal-body textarea {
+        background: #ffffff;
+        color: #0f172a;
+      }
 
-        <MiniBox label="التطبيقات (إجمالي)" value={currency(appsWithFallback(activeForm))} />
+      .clean-admin-modal-body input:focus,
+      .clean-admin-modal-body textarea:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        border-color: #3b82f6;
+      }
 
-        <MiniBox label="البنك (إجمالي)" value={currency(bankWithFallback(activeForm))} />
+      .clean-modal-scroll {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
 
-        <MiniBox
-          label="إجمالي بدون العهدة"
-          value={currency(
-            Number(activeForm.cashCollection || 0) +
-            Number(appsWithFallback(activeForm) || 0) +
-            Number(bankWithFallback(activeForm) || 0) +
-            Number(activeForm.purchases || 0)
-          )}
-        />
-      </div>
+      @media (max-width: 640px) {
+        .clean-admin-modal-body {
+          max-height: calc(94vh - 135px);
+        }
+      }
+    `}</style>
 
-      {/* APPS DETAILS */}
-      <h4 className="font-bold text-md mb-2">تفاصيل التطبيقات</h4>
-      <table className="min-w-full text-sm border mb-4">
-        <thead className="bg-slate-100/80">
-          <tr>
-            <th className="p-2 border">الاسم</th>
-            <th className="p-2 border">المبلغ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(activeForm.applications || []).map((a, i) => (
-            <tr key={i} className="text-center">
-              <td className="p-2 border">{a.name}</td>
-              <td className="p-2 border">{currency(a.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div
+      className="fixed inset-0 z-[9999] bg-slate-950/75 backdrop-blur-md flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      onClick={() => setActiveForm(null)}
+    >
+      <div
+        className="relative w-full max-w-4xl max-h-[94vh] overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-black/10 border border-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div className="sticky top-0 z-20 bg-white border-b px-4 sm:px-6 py-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h3 className="text-base sm:text-lg font-bold leading-relaxed text-slate-900">
+              تفاصيل التقرير — {activeForm.branch?.name} —{" "}
+              {formatDateOnly(activeForm.formDate)}
+            </h3>
 
-      <div className="text-right mb-6 font-semibold">
-        إجمالي التطبيقات: <span className="text-blue-600">{currency(appsWithFallback(activeForm))}</span>
-      </div>
-
-      {/* BANK DETAILS */}
-      <h4 className="font-bold text-md mb-2">تفاصيل البنك</h4>
-      <table className="min-w-full text-sm border mb-4">
-        <thead className="bg-slate-100/80">
-          <tr>
-            <th className="p-2 border">النوع</th>
-            <th className="p-2 border">المبلغ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(activeForm.bankCollections || []).map((b, i) => (
-            <tr key={i} className="text-center">
-              <td className="p-2 border">{b.name}</td>
-              <td className="p-2 border">{currency(b.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="text-right mb-6 font-semibold">
-        إجمالي البنك: <span className="text-blue-600">{currency(bankWithFallback(activeForm))}</span>
-      </div>
-
-      {/* ATTACHMENTS */}
-      <div className="mb-5 mt-6">
-        <h4 className="font-semibold mb-2">المرفقات</h4>
-
-        {attLoading ? (
-          <p className="text-gray-500 text-sm">جاري التحميل…</p>
-        ) : !attachments.length ? (
-          <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
-        ) : (
-          <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {attachments.map((att) => {
-              const url = att.fileUrl?.startsWith("http")
-                ? att.fileUrl
-                : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl}`;
-
-              const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(att.fileUrl);
-
-              return (
-                <li key={att._id} className="border rounded-xl bg-slate-50/80 overflow-hidden">
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                    {isImg ? (
-                      <img src={url} alt="" className="w-full h-32 object-cover rounded" />
-                    ) : (
-                      <div className="p-3 text-center text-sm truncate">{att.fileUrl}</div>
-                    )}
-                  </a>
-
-                  <button
-                    onClick={() => window.open(url, "_blank")}
-                    className="mt-2 mx-2 mb-2 w-[calc(100%-1rem)] rounded-xl brand-primary-btn px-2 py-1 text-sm"
-                  >
-                    فتح
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* ===== NOTES SECTION ===== */}
-
-      {/* USER NOTE */}
-      <div className="mb-4 bg-slate-50/80 p-3 rounded-xl">
-        <div className="flex justify-between mb-1">
-          <p className="text-sm text-gray-600">ملاحظة المستخدم:</p>
-          <p className="text-sm text-gray-500">{activeForm.user?.name || "—"}</p>
-        </div>
-        <p className="font-semibold">{activeForm.notes || "—"}</p>
-      </div>
-
-      {/* ACCOUNTANT NOTE */}
-      <div className="mb-4 bg-slate-50/80 p-3 rounded-xl">
-        <div className="flex justify-between mb-1">
-          <p className="text-sm text-gray-600">ملاحظات المحاسب:</p>
-          <p className="text-sm text-gray-500">
-            {activeForm.accountantRelease?.by?.name || "—"}
-          </p>
-        </div>
-        <p className="font-semibold">
-          {activeForm.accountantRelease?.note || "—"}
-        </p>
-      </div>
-
-      {/* BRANCH MANAGER NOTE */}
-      <div className="mb-6 bg-slate-50/80 p-3 rounded-xl">
-        <div className="flex justify-between mb-1">
-          <p className="text-sm text-gray-600">ملاحظات مدير الفرع:</p>
-          <p className="text-sm text-gray-500">
-            {activeForm.branchManagerRelease?.by?.name || "—"}
-          </p>
-        </div>
-        <p className="font-semibold">
-          {activeForm.branchManagerRelease?.note || "—"}
-        </p>
-      </div>
-
-      {/* ADMIN INPUT */}
-      <h4 className="font-bold text-md mb-3">إدخال بيانات الإدمن</h4>
-
-      <div className="grid md:grid-cols-3 gap-3 mb-4">
-        <div>
-          <label className="text-sm text-gray-600">نقدي المستلم فعلاً</label>
-          <input
-            type="number"
-            className="border rounded-xl p-2 w-full"
-            value={recvCash}
-            onChange={(e) => setRecvCash(e.target.value)}
-          />
+            <button
+              onClick={() => setActiveForm(null)}
+              className="border px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-sm shadow-sm w-full sm:w-auto"
+            >
+              إغلاق
+            </button>
+          </div>
         </div>
 
-        <div>
-          <label className="text-sm text-gray-600">تطبيقات المستلم فعلاً</label>
-          <input
-            type="number"
-            className="border rounded-xl p-2 w-full"
-            value={recvApps}
-            onChange={(e) => setRecvApps(e.target.value)}
-          />
+        {/* BODY */}
+        <div className="clean-admin-modal-body clean-modal-scroll px-4 sm:px-6 py-5 overflow-y-auto max-h-[calc(94vh-145px)] bg-white">
+          {/* SUMMARY */}
+          <h4 className="font-bold text-md mb-3 text-slate-900">الملخص</h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <MiniBox label="العهدة" value={currency(activeForm.pettyCash || 0)} />
+
+            <MiniBox label="المشتريات" value={currency(activeForm.purchases || 0)} />
+
+            <MiniBox label="النقدي" value={currency(activeForm.cashCollection || 0)} />
+
+            <MiniBox
+              label="التطبيقات (إجمالي)"
+              value={currency(appsWithFallback(activeForm))}
+            />
+
+            <MiniBox
+              label="البنك (إجمالي)"
+              value={currency(bankWithFallback(activeForm))}
+            />
+
+            <MiniBox
+              label="إجمالي بدون العهدة"
+              value={currency(
+                Number(activeForm.cashCollection || 0) +
+                  Number(appsWithFallback(activeForm) || 0) +
+                  Number(bankWithFallback(activeForm) || 0) +
+                  Number(activeForm.purchases || 0)
+              )}
+            />
+          </div>
+
+          {/* APPS DETAILS */}
+          <h4 className="font-bold text-md mb-2 text-slate-900">تفاصيل التطبيقات</h4>
+
+          <div className="w-full overflow-x-auto clean-modal-scroll mb-4 rounded-xl border">
+            <table className="min-w-[420px] w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="p-2 border text-center">الاسم</th>
+                  <th className="p-2 border text-center">المبلغ</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {(activeForm.applications || []).length ? (
+                  (activeForm.applications || []).map((a, i) => (
+                    <tr key={i} className="text-center">
+                      <td className="p-2 border">{a.name}</td>
+                      <td className="p-2 border font-semibold">
+                        {currency(a.amount)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="p-4 border text-center text-gray-500">
+                      لا يوجد تطبيقات
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-right mb-6 font-semibold">
+            إجمالي التطبيقات:{" "}
+            <span className="text-blue-600">
+              {currency(appsWithFallback(activeForm))}
+            </span>
+          </div>
+
+          {/* BANK DETAILS */}
+          <h4 className="font-bold text-md mb-2 text-slate-900">تفاصيل البنك</h4>
+
+          <div className="w-full overflow-x-auto clean-modal-scroll mb-4 rounded-xl border">
+            <table className="min-w-[420px] w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="p-2 border text-center">النوع</th>
+                  <th className="p-2 border text-center">المبلغ</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {(activeForm.bankCollections || []).length ? (
+                  (activeForm.bankCollections || []).map((b, i) => (
+                    <tr key={i} className="text-center">
+                      <td className="p-2 border">{b.name}</td>
+                      <td className="p-2 border font-semibold">
+                        {currency(b.amount)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="p-4 border text-center text-gray-500">
+                      لا يوجد تحصيلات بنك
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-right mb-6 font-semibold">
+            إجمالي البنك:{" "}
+            <span className="text-blue-600">
+              {currency(bankWithFallback(activeForm))}
+            </span>
+          </div>
+
+          {/* ATTACHMENTS */}
+          <div className="mb-5 mt-6">
+            <h4 className="font-semibold mb-2 text-slate-900">المرفقات</h4>
+
+            {attLoading ? (
+              <p className="text-gray-500 text-sm">جاري التحميل…</p>
+            ) : !attachments.length ? (
+              <p className="text-gray-500 text-sm">لا يوجد مرفقات</p>
+            ) : (
+              <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {attachments.map((att) => {
+                  const url = att.fileUrl?.startsWith("http")
+                    ? att.fileUrl
+                    : `${process.env.REACT_APP_API_URL || ""}${att.fileUrl}`;
+
+                  const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(att.fileUrl);
+
+                  return (
+                    <li
+                      key={att._id}
+                      className="border rounded-xl bg-white overflow-hidden shadow-sm"
+                    >
+                      <a href={url} target="_blank" rel="noopener noreferrer">
+                        {isImg ? (
+                          <img
+                            src={url}
+                            alt=""
+                            className="w-full h-32 object-cover"
+                          />
+                        ) : (
+                          <div className="p-3 text-center text-sm truncate bg-slate-50">
+                            {att.fileUrl}
+                          </div>
+                        )}
+                      </a>
+
+                      <button
+                        onClick={() => window.open(url, "_blank")}
+                        className="mt-2 mx-2 mb-2 w-[calc(100%-1rem)] rounded-xl brand-primary-btn px-2 py-1 text-sm"
+                      >
+                        فتح
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* NOTES SECTION */}
+
+          {/* USER NOTE */}
+          <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="flex justify-between gap-3 mb-1">
+              <p className="text-sm text-gray-600">ملاحظة المستخدم:</p>
+              <p className="text-sm text-gray-500">
+                {activeForm.user?.name || "—"}
+              </p>
+            </div>
+            <p className="font-semibold whitespace-pre-wrap text-slate-900">
+              {activeForm.notes || "—"}
+            </p>
+          </div>
+
+          {/* ACCOUNTANT NOTE */}
+          <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="flex justify-between gap-3 mb-1">
+              <p className="text-sm text-gray-600">ملاحظات المحاسب:</p>
+              <p className="text-sm text-gray-500">
+                {activeForm.accountantRelease?.by?.name || "—"}
+              </p>
+            </div>
+            <p className="font-semibold whitespace-pre-wrap text-slate-900">
+              {activeForm.accountantRelease?.note || "—"}
+            </p>
+          </div>
+
+          {/* BRANCH MANAGER NOTE */}
+          <div className="mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="flex justify-between gap-3 mb-1">
+              <p className="text-sm text-gray-600">ملاحظات مدير الفرع:</p>
+              <p className="text-sm text-gray-500">
+                {activeForm.branchManagerRelease?.by?.name || "—"}
+              </p>
+            </div>
+            <p className="font-semibold whitespace-pre-wrap text-slate-900">
+              {activeForm.branchManagerRelease?.note || "—"}
+            </p>
+          </div>
+
+          {/* ADMIN INPUT */}
+          <h4 className="font-bold text-md mb-3 text-slate-900">
+            إدخال بيانات الإدمن
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="text-sm text-gray-600 block mb-1">
+                نقدي المستلم فعلاً
+              </label>
+              <input
+                type="number"
+                className="border rounded-xl p-2 w-full"
+                value={recvCash}
+                onChange={(e) => setRecvCash(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 block mb-1">
+                تطبيقات المستلم فعلاً
+              </label>
+              <input
+                type="number"
+                className="border rounded-xl p-2 w-full"
+                value={recvApps}
+                onChange={(e) => setRecvApps(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 block mb-1">
+                بنك المستلم فعلاً
+              </label>
+              <input
+                type="number"
+                className="border rounded-xl p-2 w-full"
+                value={recvBank}
+                onChange={(e) => setRecvBank(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="text-sm text-gray-600 block mb-1">
+              ملاحظات الإدمن
+            </label>
+            <textarea
+              className="border rounded-xl p-2 w-full min-h-24"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 mt-6 px-4 sm:px-6 py-4 bg-white border-t shadow-[0_-8px_20px_rgba(15,23,42,0.08)] flex flex-col sm:flex-row justify-end gap-2">
+            <button
+              disabled={actLoading}
+              onClick={doAdminReject}
+              className="px-4 py-2 brand-danger-btn rounded-xl hover:bg-blue-800 w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              رفض
+            </button>
+
+            <button
+              disabled={actLoading}
+              onClick={doAdminRelease}
+              className="px-4 py-2 brand-success-btn rounded-xl hover:bg-blue-800 w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              استلام
+            </button>
+          </div>
         </div>
-
-        <div>
-          <label className="text-sm text-gray-600">بنك المستلم فعلاً</label>
-          <input
-            type="number"
-            className="border rounded-xl p-2 w-full"
-            value={recvBank}
-            onChange={(e) => setRecvBank(e.target.value)}
-          />
-        </div>
       </div>
-
-      <div className="mb-4">
-        <label className="text-sm text-gray-600">ملاحظات الإدمن</label>
-        <textarea
-          className="border rounded-xl p-2 w-full min-h-24"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-      </div>
-
-      {/* ACTION BUTTONS */}
-      <div className="flex justify-end gap-2 sticky bottom-0 pt-3 bg-white z-10 border-t">
-        <button
-          disabled={actLoading}
-          onClick={doAdminReject}
-          className="px-3 py-2 brand-danger-btn rounded-xl hover:bg-blue-800"
-        >
-          رفض
-        </button>
-
-        <button
-          disabled={actLoading}
-          onClick={doAdminRelease}
-          className="px-3 py-2 brand-success-btn rounded-xl hover:bg-blue-800"
-        >
-          استلام
-        </button>
-      </div>
-
     </div>
-  </div>
+  </>
 )}
-
 
     </>
   );
