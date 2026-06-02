@@ -2,7 +2,6 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-// عدل المسار حسب مكان الموديل عندك
 const User = require("../models/User");
 
 async function createAdmin() {
